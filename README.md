@@ -1,65 +1,74 @@
 # AspireCloud
 
-This plugin provides a foundation for WordPress Core Services API functionality. AspireCloud serves as a base framework for future development of core WordPress services integration.
+**Contributors:** AspirePress  
+**Tags:** wordpress, api, headless, passthrough, wordpress-api  
+**Requires at least:** 5.3  
+**Tested up to:** 6.8.1  
+**Requires PHP:** 7.4  
+**Stable tag:** 0.0.1  
+**License:** GPLv2 or later  
+**License URI:** https://www.gnu.org/licenses/gpl-2.0.html
 
-## Status
+## Description
 
-This plugin is currently in early development stage and does not include active functionality.
+AspireCloud transforms your WordPress site into a headless installation with source API passthrough functionality. All requests to your site root are automatically passed through to source, while maintaining full WordPress admin functionality.
+
+## Features
+
+### Root-Level API Passthrough
+- Direct passthrough from `https://yoursite.com/{path}` to `https://apisourcesite.com/{path}`
+- GET requests only
+- Query parameters preserved
+- Error handling and response proxying
+
+### Headless WordPress
+- Frontend disabled for regular visitors
+- Admin interface fully functional
+- WordPress core paths protected
+- Static assets served normally
+
+### WordPress Integration
+- Seamless integration with WordPress rewrite system
+- Automatic activation/deactivation handling
+- WordPress coding standards compliant
+- Comprehensive error handling
+
+## Quick Start
+
+1. **Install & Activate** the plugin
+2. **Visit Settings → Permalinks** and click "Save Changes" to flush rewrite rules
+3. **Test** by visiting your site root - you should see the api welcome page content
+
+## Protected WordPress Paths
+
+These paths continue to work normally:
+- `/wp-admin/` - WordPress admin
+- `/wp-login.php` - Login page
+- `/wp-content/` - Static assets
+- `/wp-json/` - REST API
 
 ## Requirements
 
-This plugin requires:
-
-- WordPress 5.3 or later
-- PHP 7.4 or later
-- The ability to upload files to your WordPress installation
-- The ability to modify your configuration in wp-config.php
-
-## Installation
-
-To install this plugin, follow these steps:
-
-1. Download a copy of this plugin as a ZIP file from GitHub or the Releases section.
-2. Go to the WordPress Dashboard (/wp-admin) section and log in if necessary as an administrator.
-3. Go to the Plugins menu and click on "Add New Plugin".
-4. Click the button "Upload Plugin" and upload the plugin ZIP file.
-5. Activate the AspireCloud plugin.
-
-Note: This plugin is currently in development and does not provide user-facing functionality.
+- **WordPress:** 5.3 or higher
+- **PHP:** 7.4 or higher
+- **Server:** Must support WordPress rewrite rules
 
 ## Development
 
-This plugin is being developed as a foundation for WordPress Core Services API functionality. Future releases will include:
-
-- Core WordPress services integration framework
-- API endpoint management
-- Service discovery and registration
-- Authentication and authorization systems
-
-## License
-
-This plugin is licensed under the GPLv2 license. See the LICENSE.md file for more details.
-
-## Contributing
-
-We welcome contributions to AspireCloud! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for your changes
-5. Submit a pull request
+This plugin follows WordPress coding standards and includes:
+- PSR-4 autoloading
+- PHPUnit tests
+- PHPCS integration
+- Comprehensive documentation
 
 ## Support
 
-For support, please:
-
-1. Check the documentation
-2. Search existing GitHub issues
-3. Create a new issue if needed
+For support and documentation, visit [AspirePress Documentation](https://docs.aspirepress.org/aspirecloud/).
 
 ## Changelog
 
 ### 0.0.1
-- Initial plugin framework
-- Basic plugin structure for future development
+- Initial release
+- Root-level api.wordpress.org API passthrough
+- Headless WordPress functionality
+- WordPress admin preservation
