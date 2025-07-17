@@ -32,6 +32,10 @@ if ( ! defined( 'AC_VERSION' ) ) {
 	define( 'AC_VERSION', '0.0.1' );
 }
 
+if ( ! defined( 'AC_SOURCE_API_ENDPOINT' ) ) {
+	define( 'AC_SOURCE_API_ENDPOINT', 'https://api.wordpress.org' );
+}
+
 add_action( 'plugins_loaded', 'define_constant' );
 function define_constant() {
 	if ( ! defined( 'AC_PATH' ) ) {
@@ -39,4 +43,42 @@ function define_constant() {
 	}
 }
 
-// Simple API endpoint functionality will be added here in the future
+// Load the autoloader
+require_once __DIR__ . '/includes/autoload.php';
+
+// Initialize the plugin functionality
+add_action( 'init', 'aspire_cloud_init' );
+
+// Plugin activation and deactivation hooks// Plugin activation and deactivation hooks
+register_activation_hook( __FILE__, 'aspire_cloud_activate' );
+register_deactivation_hook( __FILE__, 'aspire_cloud_deactivate' );
+
+/**
+ * Plugin activation callback.
+ */
+function aspire_cloud_activate() {
+	// Initialize the controllers to register rewrite rules
+	aspire_cloud_init();
+
+	// Flush rewrite rules on activation
+	flush_rewrite_rules();
+}
+
+/**
+ * Plugin deactivation callback.
+ */
+function aspire_cloud_deactivate() {
+	// Flush rewrite rules on deactivation to clean up
+	flush_rewrite_rules();
+}
+
+/**
+ * Initialize AspireCloud plugin.
+ */
+function aspire_cloud_init() {
+	// Initialize the Passthrough API controller
+	new \AspireCloud\Controller\Passthrough();
+
+	// Initialize the Headless WordPress controller
+	new \AspireCloud\Controller\Headless();
+}
