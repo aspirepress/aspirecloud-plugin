@@ -1,0 +1,37 @@
+{
+  "name": "aspirecloud",
+  "version": "0.0.1",
+  "description": "WordPress Core Services API foundation",
+  "main": "aspire-cloud.php",
+  "keywords": [
+    "wordpress",
+    "plugin"
+  ],
+  "author": "AspirePress",
+  "license": "GPL-2.0-or-later",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aspirepress/aspirecloud.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aspirepress/aspirecloud/issues"
+  },
+  "homepage": "https://aspirepress.org/",
+  "scripts": {
+    "wp-env": "wp-env",
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:clean": "wp-env clean",
+    "env:destroy": "wp-env destroy",
+    "test:e2e": "npx playwright test --config=./tests/e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@wordpress/env": "^10.18.0",
+    "dotenv": "^16.4.7"
+  }
+}
