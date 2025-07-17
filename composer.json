@@ -1,0 +1,62 @@
+{
+	"name": "aspirepress/aspirecloud",
+	"description": "WordPress Core Services API.",
+	"type": "wordpress-plugin",
+	"license": "GPLv2",
+	"authors": [
+		{
+			"name": "AspirePress"
+		}
+	],
+	"require": {
+		"php": ">=7.4.0"
+	},
+	"require-dev": {
+		"squizlabs/php_codesniffer": "3.10.3",
+		"wp-coding-standards/wpcs": "~3.1.0",
+		"yoast/phpunit-polyfills": "^1.1.0",
+		"nimut/phpunit-merger": "^2.0",
+		"wp-cli/wp-cli-bundle": "^2.12"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"scripts": {
+		"format": "@php ./vendor/squizlabs/php_codesniffer/bin/phpcbf --report=summary,source",
+		"lint": "@php ./vendor/squizlabs/php_codesniffer/bin/phpcs --report=summary,source",
+		"test": [
+			"Composer\\Config::disableProcessTimeout",
+			"@php ./vendor/phpunit/phpunit/phpunit"
+		],
+		"test:multisite": [
+			"Composer\\Config::disableProcessTimeout",
+			"@php ./vendor/phpunit/phpunit/phpunit -c tests/phpunit/multisite.xml"
+		],
+		"coverage:merge": [
+			"Composer\\Config::disableProcessTimeout",
+			"@putenv XDEBUG_MODE=coverage",
+			"@php ./vendor/bin/phpunit-merger coverage tests/phpunit/coverage/php --html tests/phpunit/coverage/html/full tests/phpunit/cache/full-cache.xml"
+		],
+		"coverage:single": [
+			"Composer\\Config::disableProcessTimeout",
+			"@putenv XDEBUG_MODE=off",
+			"@putenv WP_TESTS_SKIP_INSTALL=0",
+			"@test --filter prime_test_suite",
+			"@putenv XDEBUG_MODE=coverage",
+			"@php ./vendor/phpunit/phpunit/phpunit --filter Integration --coverage-php tests/phpunit/cache/full-cache.xml",
+			"@php ./vendor/bin/phpunit-merger coverage tests/phpunit/coverage/php --html tests/phpunit/coverage/html/single tests/phpunit/cache/full-cache.xml"
+		],
+		"coverage:unit": [
+			"Composer\\Config::disableProcessTimeout",
+			"@putenv XDEBUG_MODE=coverage",
+			"@php ./vendor/phpunit/phpunit/phpunit --exclude-group=Integration --coverage-php tests/phpunit/coverage/php/unit.xml --coverage-html tests/phpunit/coverage/html/unit"
+		],
+		"coverage:integration": [
+			"Composer\\Config::disableProcessTimeout",
+			"@putenv XDEBUG_MODE=coverage",
+			"@php ./vendor/phpunit/phpunit/phpunit --group=Integration --coverage-php tests/phpunit/coverage/php/integration.xml --coverage-html tests/phpunit/coverage/html/integration"
+		]
+	}
+}

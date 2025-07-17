@@ -1,0 +1,15 @@
+# gitignore files for Aspire Update
+
+# Files and folders related to build and test tools.
+.phpunit.result.cache
+/phpunit.xml
+/vendor/*
+/node_modules/*
+.cache/*
+/tests/phpunit/cache
+/tests/phpunit/coverage
+/tests/e2e/artifacts
+.DS_Store
+
+# Track placeholders so that empty directories stay in the repo.
+!.gitkeep
