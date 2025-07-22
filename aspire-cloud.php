@@ -36,18 +36,23 @@ if ( ! defined( 'AC_SOURCE_API_ENDPOINT' ) ) {
 	define( 'AC_SOURCE_API_ENDPOINT', 'https://api.wordpress.org' );
 }
 
-add_action( 'plugins_loaded', 'define_constant' );
-function define_constant() {
-	if ( ! defined( 'AC_PATH' ) ) {
-		define( 'AC_PATH', __DIR__ );
+add_action(
+	'plugins_loaded',
+	function () {
+		if ( ! defined( 'AC_PATH' ) ) {
+			define( 'AC_PATH', __DIR__ );
+		}
+		if ( ! defined( 'AC_URL' ) ) {
+			define( 'AC_URL', plugin_dir_url( __FILE__ ) );
+		}
 	}
-}
+);
 
 // Load the autoloader
 require_once __DIR__ . '/includes/autoload.php';
 
-// Initialize the plugin functionality
-add_action( 'init', 'aspire_cloud_init' );
+// Initialize the plugin functionality earlier to ensure custom post types register properly
+add_action( 'plugins_loaded', 'aspire_cloud_init' );
 
 // Plugin activation and deactivation hooks// Plugin activation and deactivation hooks
 register_activation_hook( __FILE__, 'aspire_cloud_activate' );
@@ -60,7 +65,7 @@ function aspire_cloud_activate() {
 	// Initialize the controllers to register rewrite rules
 	aspire_cloud_init();
 
-	// Flush rewrite rules on activation
+	// Flush rewrite rules on activation to ensure custom post types work
 	flush_rewrite_rules();
 }
 
@@ -81,4 +86,14 @@ function aspire_cloud_init() {
 
 	// Initialize the Headless WordPress controller
 	new \AspireCloud\Controller\Headless();
+
+	// Initialize custom post types
+	new \AspireCloud\Model\Plugins();
+	new \AspireCloud\Model\Themes();
+
+	// Initialize import controllers (admin only)
+	if ( is_admin() ) {
+		new \AspireCloud\Controller\PluginImport();
+		new \AspireCloud\Controller\ThemeImport();
+	}
 }
