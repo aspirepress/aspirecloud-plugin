@@ -36,12 +36,17 @@ if ( ! defined( 'AC_SOURCE_API_ENDPOINT' ) ) {
 	define( 'AC_SOURCE_API_ENDPOINT', 'https://api.wordpress.org' );
 }
 
-add_action( 'plugins_loaded', 'define_constant' );
-function define_constant() {
-	if ( ! defined( 'AC_PATH' ) ) {
-		define( 'AC_PATH', __DIR__ );
+add_action(
+	'plugins_loaded',
+	function () {
+		if ( ! defined( 'AC_PATH' ) ) {
+			define( 'AC_PATH', __DIR__ );
+		}
+		if ( ! defined( 'AC_URL' ) ) {
+			define( 'AC_URL', plugin_dir_url( __FILE__ ) );
+		}
 	}
-}
+);
 
 // Load the autoloader
 require_once __DIR__ . '/includes/autoload.php';
@@ -85,4 +90,10 @@ function aspire_cloud_init() {
 	// Initialize custom post types
 	new \AspireCloud\Model\Plugins();
 	new \AspireCloud\Model\Themes();
+
+	// Initialize import controllers (admin only)
+	if ( is_admin() ) {
+		new \AspireCloud\Controller\PluginImport();
+		new \AspireCloud\Controller\ThemeImport();
+	}
 }

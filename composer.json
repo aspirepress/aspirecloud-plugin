@@ -34,6 +34,10 @@
 			"Composer\\Config::disableProcessTimeout",
 			"@php ./vendor/phpunit/phpunit/phpunit -c tests/phpunit/multisite.xml"
 		],
+		"build:css": "npm run build:css",
+		"build:css:dev": "npm run build:css:dev",
+		"watch:css": "npm run watch:css",
+		"build": "npm run build",
 		"coverage:merge": [
 			"Composer\\Config::disableProcessTimeout",
 			"@putenv XDEBUG_MODE=coverage",

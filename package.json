@@ -27,11 +27,16 @@
     "env:stop": "wp-env stop",
     "env:clean": "wp-env clean",
     "env:destroy": "wp-env destroy",
-    "test:e2e": "npx playwright test --config=./tests/e2e/playwright.config.ts"
+    "test:e2e": "npx playwright test --config=./tests/e2e/playwright.config.ts",
+    "build:css": "sass assets/css/admin.scss assets/css/admin.css --style=compressed --source-map",
+    "build:css:dev": "sass assets/css/admin.scss assets/css/admin.css --style=expanded --source-map",
+    "watch:css": "sass assets/css/admin.scss assets/css/admin.css --watch --style=expanded --source-map",
+    "build": "npm run build:css"
   },
   "devDependencies": {
     "@playwright/test": "^1.50.1",
     "@wordpress/env": "^10.18.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "sass": "^1.89.2"
   }
 }

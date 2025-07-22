@@ -1,0 +1,252 @@
+/* AspireCloud Admin Styles */
+
+// Variables
+$primary-color: #007cba;
+$primary-light: #00a0d2;
+$success-color: #46b450;
+$success-light: #5cbf60;
+$error-color: #dc3232;
+$error-light: #e74c3c;
+$border-color: #e1e1e1;
+$background-light: #f9f9f9;
+$text-color: #333;
+$text-light: #666;
+$white: #fff;
+$overlay-bg: rgba(0, 0, 0, 0.5);
+$shadow-light: rgba(0, 0, 0, 0.13);
+$shadow-dark: rgba(0, 0, 0, 0.3);
+
+// Mixins
+@mixin button-hover-effect {
+	transition: all 0.2s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+	}
+}
+
+@mixin gradient-background($start, $end) {
+	background: linear-gradient(90deg, $start 0%, $end 100%);
+}
+
+@mixin progress-stripes {
+	&::after {
+		content: "";
+		position: absolute;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		right: 0;
+		background-image: linear-gradient(
+			-45deg,
+			rgba(255, 255, 255, 0.2) 25%,
+			transparent 25%,
+			transparent 50%,
+			rgba(255, 255, 255, 0.2) 50%,
+			rgba(255, 255, 255, 0.2) 75%,
+			transparent 75%,
+			transparent
+		);
+		background-size: 50px 50px;
+		animation: aspirecloud-progress-stripes 1s linear infinite;
+	}
+}
+
+// Import Page Styles
+.aspirecloud-import-page {
+	background: #f1f1f1;
+	padding: 0;
+
+	.wrap {
+		background: $white;
+		border-radius: 8px;
+		box-shadow: 0 1px 3px $shadow-light;
+		margin: 20px;
+		padding: 30px;
+		position: relative;
+	}
+}
+
+.aspirecloud-import-container {
+	max-width: 800px;
+	margin: 40px auto;
+	text-align: center;
+}
+
+.aspirecloud-import-button-container {
+	margin-bottom: 40px;
+
+	.button-large {
+		font-size: 18px;
+		padding: 12px 30px;
+		min-width: 250px;
+		border-radius: 6px;
+		@include button-hover-effect;
+
+		&:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+			transform: none !important;
+			box-shadow: none !important;
+		}
+
+		// Add spacing between multiple buttons
+		+ .button-large {
+			margin-left: 15px;
+		}
+	}
+
+	.aspirecloud-clear-data-btn {
+		background-color: #dc3232 !important;
+		border-color: #dc3232 !important;
+		color: $white !important;
+
+		&:hover {
+			background-color: #c62d2d !important;
+			border-color: #c62d2d !important;
+		}
+
+		&:focus {
+			box-shadow: 0 0 0 1px $white, 0 0 0 3px #dc3232 !important;
+		}
+
+		&:disabled {
+			background-color: #dc3232 !important;
+			border-color: #dc3232 !important;
+			opacity: 0.6;
+		}
+	}
+}
+
+// Progress Container
+.aspirecloud-progress-container {
+	margin-top: 30px;
+	padding: 20px;
+	background: $background-light;
+	border-radius: 8px;
+	border: 1px solid $border-color;
+}
+
+.aspirecloud-progress-bar {
+	width: 100%;
+	height: 20px;
+	background: $border-color;
+	border-radius: 10px;
+	overflow: hidden;
+	margin-bottom: 15px;
+	position: relative;
+}
+
+.aspirecloud-progress-fill {
+	height: 100%;
+	@include gradient-background($primary-color, $primary-light);
+	width: 0%;
+	transition: width 0.3s ease;
+	border-radius: 10px;
+	position: relative;
+	@include progress-stripes;
+}
+
+@keyframes aspirecloud-progress-stripes {
+	0% {
+		background-position: 0 0;
+	}
+	100% {
+		background-position: 50px 0;
+	}
+}
+
+.aspirecloud-progress-text {
+	font-size: 16px;
+	font-weight: 600;
+	color: $text-color;
+	margin-bottom: 10px;
+}
+
+.aspirecloud-progress-details {
+	font-size: 14px;
+	color: $text-light;
+	line-height: 1.4;
+}
+
+// Ajax Overlay
+.aspirecloud-ajax-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: $overlay-bg;
+	z-index: 999999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.aspirecloud-ajax-spinner {
+	background: $white;
+	border-radius: 8px;
+	padding: 30px;
+	text-align: center;
+	box-shadow: 0 4px 20px $shadow-dark;
+
+	.spinner {
+		margin: 0 auto;
+		width: 30px;
+		height: 30px;
+	}
+}
+
+// Success and Error States
+.aspirecloud-import-complete {
+	.aspirecloud-progress-fill {
+		@include gradient-background($success-color, $success-light);
+	}
+
+	.aspirecloud-progress-text {
+		color: $success-color;
+		font-weight: 700;
+	}
+}
+
+.aspirecloud-import-error {
+	.aspirecloud-progress-fill {
+		@include gradient-background($error-color, $error-light);
+	}
+
+	.aspirecloud-progress-text {
+		color: $error-color;
+		font-weight: 700;
+	}
+}
+
+// Responsive Design
+@media (max-width: 768px) {
+	.aspirecloud-import-page {
+		.wrap {
+			margin: 10px;
+			padding: 20px;
+		}
+	}
+
+	.aspirecloud-import-container {
+		margin: 20px auto;
+	}
+
+	.aspirecloud-import-button-container {
+		.button-large {
+			font-size: 16px;
+			padding: 10px 20px;
+			min-width: 200px;
+		}
+	}
+
+	.aspirecloud-progress-text {
+		font-size: 14px;
+	}
+
+	.aspirecloud-progress-details {
+		font-size: 12px;
+	}
+}
