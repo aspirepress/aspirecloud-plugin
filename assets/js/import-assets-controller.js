@@ -1,10 +1,10 @@
 /**
  * ImportAssets Class
- * 
+ *
  * Main import controller that orchestrates the two-phase import process:
  * Phase 1: Import metadata in batches (MetadataImporter)
  * Phase 2: Download files in batches (FileDownloader)
- * 
+ *
  * Dependencies: Logger, MetadataImporter, FileDownloader, DatabaseManager classes
  */
 
@@ -53,9 +53,23 @@ class ImportAssets {
 			return;
 		}
 
-		this.logger.log('INFO', `Starting ${this.config.assetType} import process`);
+		// Check which phases are selected
+		const importMetadata = jQuery('#import-metadata-checkbox').is(':checked');
+		const importFiles = jQuery('#import-files-checkbox').is(':checked');
+
+		// Validate that at least one phase is selected
+		if (!importMetadata && !importFiles) {
+			this.logger.log('ERROR', 'No import phases selected', 'Please select at least one import option');
+			alert('Please select at least one import option (Import Metadata or Import Files)');
+			return;
+		}
+
+		this.logger.log('INFO', `Starting ${this.config.assetType} import process`,
+			`Selected phases: ${importMetadata ? 'Metadata' : ''}${importMetadata && importFiles ? ' + ' : ''}${importFiles ? 'Files' : ''}`);
 
 		this.config.isRunning = true;
+		this.config.importMetadata = importMetadata;
+		this.config.importFiles = importFiles;
 		this.errors = [];
 
 		// Reset all sub-managers
@@ -78,18 +92,32 @@ class ImportAssets {
 		// Show log container along with progress
 		jQuery(this.selectors.logContainer).show();
 
-		// Start Phase 1: Metadata Import
-		this.logger.log('INFO', 'Phase 1: Starting metadata import');
-		this.metadataImporter.start();
+		// Start the appropriate phase(s)
+		if (importMetadata) {
+			// Start Phase 1: Metadata Import
+			this.logger.log('INFO', 'Phase 1: Starting metadata import');
+			this.metadataImporter.start();
+		} else if (importFiles) {
+			// Skip to Phase 2: File Downloads (metadata phase not selected)
+			this.logger.log('INFO', 'Skipping metadata phase, starting file downloads directly');
+			this.onMetadataImportComplete();
+		}
 	}
 
 	// Called when metadata import phase is complete
 	onMetadataImportComplete() {
 		this.logger.log('SUCCESS', 'Phase 1 completed: Metadata import finished');
-		this.logger.log('INFO', 'Phase 2: Starting file downloads');
 
-		// Start Phase 2: File Downloads
-		this.fileDownloader.start();
+		// Check if file download phase is selected
+		if (this.config.importFiles) {
+			this.logger.log('INFO', 'Phase 2: Starting file downloads');
+			// Start Phase 2: File Downloads
+			this.fileDownloader.start();
+		} else {
+			// Skip file download phase
+			this.logger.log('INFO', 'Skipping file download phase (not selected)');
+			this.onFileDownloadComplete();
+		}
 	}
 
 	// Called when file download phase is complete

@@ -241,6 +241,23 @@ abstract class AssetsImporter {
 					</button>
 				</div>
 
+				<div class="aspirecloud-import-options">
+					<h4><?php esc_html_e( 'Import Options', 'aspirecloud' ); ?></h4>
+					<div class="aspirecloud-checkbox-container">
+						<label class="aspirecloud-checkbox-wrapper">
+							<input type="checkbox" id="import-metadata-checkbox" class="aspirecloud-import-option" checked="checked">
+							<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Metadata', 'aspirecloud' ); ?></span>
+							<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import plugin/theme metadata from the repository', 'aspirecloud' ); ?></span>
+						</label>
+
+						<label class="aspirecloud-checkbox-wrapper">
+							<input type="checkbox" id="import-files-checkbox" class="aspirecloud-import-option" checked="checked">
+							<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Files', 'aspirecloud' ); ?></span>
+							<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import actual plugin/theme files', 'aspirecloud' ); ?></span>
+						</label>
+					</div>
+				</div>
+
 				<div class="aspirecloud-progress-container" style="display: none;">
 					<div class="aspirecloud-progress-bar">
 						<div class="aspirecloud-progress-fill"></div>
@@ -279,14 +296,105 @@ abstract class AssetsImporter {
 	}
 
 	/**
+	 * Download asset files with detailed tracking and error reporting.
+	 *
+	 * @param object $asset_info Asset information object.
+	 * @param int    $post_id    Post ID.
+	 * @param string $slug       Asset slug.
+	 * @return array Results with download status, skip reasons, and errors.
+	 */
+	protected function download_asset_files_with_tracking( $asset_info, $post_id, $slug ) {
+		$results = [
+			'skipped'      => false,
+			'skip_reasons' => [],
+			'errors'       => [],
+		];
+
+		try {
+			// Call the specific implementation
+			$this->download_asset_files( $asset_info, $post_id, $slug );
+		} catch ( \Exception $e ) {
+			$results['errors'][] = $e->getMessage();
+			// If directory creation failed, mark as skipped
+			if ( strpos( $e->getMessage(), 'Failed to create directory' ) !== false ) {
+				$results['skipped']        = true;
+				$results['skip_reasons'][] = 'Directory creation failed';
+			}
+		}
+
+		return $results;
+	}
+
+	/**
+	 * Check if a URL is from the same domain as the current site.
+	 *
+	 * @param string $url URL to check.
+	 * @return bool True if same domain, false otherwise.
+	 */
+	protected function is_same_domain( $url ) {
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+		$url_host  = wp_parse_url( $url, PHP_URL_HOST );
+
+		return $site_host === $url_host;
+	}
+
+	/**
+	 * Download and save a file locally with skip tracking.
+	 *
+	 * @param string $url       URL to download.
+	 * @param string $directory Directory to save file.
+	 * @param string $filename  Filename to save as.
+	 * @return array Result with success status and skip reason.
+	 */
+	protected function download_and_save_file_with_tracking( $url, $directory, $filename ) {
+		$result = [
+			'success'     => false,
+			'local_path'  => false,
+			'skipped'     => false,
+			'skip_reason' => '',
+		];
+
+		// Validate inputs
+		if ( empty( $url ) || empty( $directory ) || empty( $filename ) ) {
+			$result['skip_reason'] = 'Missing required parameters';
+			$result['skipped']     = true;
+			return $result;
+		}
+
+		// Check if URL is from the same domain as current site
+		if ( $this->is_same_domain( $url ) ) {
+			$result['skipped']     = true;
+			$result['skip_reason'] = 'Same domain as current site';
+			return $result;
+		}
+
+		// Try the actual download
+		$local_path = $this->download_and_save_file( $url, $directory, $filename );
+
+		if ( $local_path ) {
+			$result['success']    = true;
+			$result['local_path'] = $local_path;
+		} else {
+			$result['skip_reason'] = 'Download failed';
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Download and save a file locally.
 	 *
-	 * @param string $url       The URL to download.
-	 * @param string $directory The directory to save to.
-	 * @param string $filename  The filename to save as.
-	 * @return string|false The local file path on success, false on failure.
+	 * @param string $url       URL to download.
+	 * @param string $directory Directory to save file.
+	 * @param string $filename  Filename to save as.
+	 * @return string|false Local path on success, false on failure.
 	 */
 	protected function download_and_save_file( $url, $directory, $filename ) {
+		// Check if URL is from the same domain as current site
+		if ( $this->is_same_domain( $url ) ) {
+			return false;
+		}
+
 		// Download the file
 		$temp_file = download_url( $url );
 
@@ -351,14 +459,19 @@ abstract class AssetsImporter {
 			return [];
 		}
 
+		// Check if directory creation failed
+		if ( false === $aspire_dir ) {
+			return [];
+		}
+
 		$upload_dir   = wp_upload_dir();
 		$local_assets = [];
 
 		foreach ( $urls_array as $size => $url ) {
 			if ( ! empty( $url ) && filter_var( $url, FILTER_VALIDATE_URL ) ) {
-				$local_path = $this->download_and_save_file( $url, $aspire_dir, $file_prefix . '-' . $size );
-				if ( $local_path ) {
-					$local_assets[ $size ] = $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $local_path );
+				$download_result = $this->download_and_save_file_with_tracking( $url, $aspire_dir, $file_prefix . '-' . $size );
+				if ( $download_result['success'] && $download_result['local_path'] ) {
+					$local_assets[ $size ] = $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $download_result['local_path'] );
 				}
 			}
 		}
@@ -381,12 +494,17 @@ abstract class AssetsImporter {
 			return false;
 		}
 
-		$upload_dir   = wp_upload_dir();
-		$zip_filename = $slug . '-' . $version . '.zip';
-		$local_zip    = $this->download_and_save_file( $download_url, $aspire_dir, $zip_filename );
+		// Check if directory creation failed
+		if ( false === $aspire_dir ) {
+			return false;
+		}
 
-		if ( $local_zip ) {
-			return $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $local_zip );
+		$upload_dir      = wp_upload_dir();
+		$zip_filename    = $slug . '-' . $version . '.zip';
+		$download_result = $this->download_and_save_file_with_tracking( $download_url, $aspire_dir, $zip_filename );
+
+		if ( $download_result['success'] && $download_result['local_path'] ) {
+			return $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $download_result['local_path'] );
 		}
 
 		return false;
@@ -407,11 +525,16 @@ abstract class AssetsImporter {
 			return false;
 		}
 
-		$upload_dir = wp_upload_dir();
-		$local_path = $this->download_and_save_file( $image_url, $aspire_dir, $filename );
+		// Check if directory creation failed
+		if ( false === $aspire_dir ) {
+			return false;
+		}
 
-		if ( $local_path ) {
-			return $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $local_path );
+		$upload_dir      = wp_upload_dir();
+		$download_result = $this->download_and_save_file_with_tracking( $image_url, $aspire_dir, $filename );
+
+		if ( $download_result['success'] && $download_result['local_path'] ) {
+			return $upload_dir['baseurl'] . '/aspirecloud/' . $asset_type . '/' . $slug . '/' . basename( $download_result['local_path'] );
 		}
 
 		return false;
@@ -422,14 +545,28 @@ abstract class AssetsImporter {
 	 *
 	 * @param string $slug       Asset slug.
 	 * @param string $asset_type Asset type (plugins/themes).
-	 * @return string Directory path.
+	 * @return string|false Directory path on success, false on failure.
 	 */
 	protected function create_asset_directory( $slug, $asset_type ) {
 		$upload_dir = wp_upload_dir();
+
+		// Check if upload directory is writable
+		if ( isset( $upload_dir['error'] ) && $upload_dir['error'] ) {
+			return false;
+		}
+
 		$aspire_dir = $upload_dir['basedir'] . '/aspirecloud/' . $asset_type . '/' . $slug;
 
 		if ( ! file_exists( $aspire_dir ) ) {
-			wp_mkdir_p( $aspire_dir );
+			$result = wp_mkdir_p( $aspire_dir );
+			if ( ! $result ) {
+				return false;
+			}
+		}
+
+		// Basic directory check
+		if ( ! file_exists( $aspire_dir ) ) {
+			return false;
 		}
 
 		return $aspire_dir;
@@ -885,13 +1022,18 @@ abstract class AssetsImporter {
 
 		$batch_size = self::DOWNLOAD_BATCH_SIZE; // Use centralized batch size
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification is done in check_ajax_permissions()
-		$offset = isset( $_POST['offset'] ) ? (int) $_POST['offset'] : 0;
+		$batch = isset( $_POST['batch'] ) ? (int) $_POST['batch'] : 1;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification is done in check_ajax_permissions()
+		$per_batch = isset( $_POST['per_batch'] ) ? (int) $_POST['per_batch'] : $batch_size;
+
+		// Calculate offset from batch number (batch 1 = offset 0)
+		$offset = ( $batch - 1 ) * $per_batch;
 
 		// Get assets that need file downloads
 		$assets = get_posts(
 			[
 				'post_type'      => $this->post_type,
-				'posts_per_page' => $batch_size,
+				'posts_per_page' => $per_batch,
 				'post_status'    => 'publish',
 				'offset'         => $offset,
 				'orderby'        => 'ID',
@@ -900,7 +1042,7 @@ abstract class AssetsImporter {
 		);
 
 		// Get total count for progress calculation
-		if ( 0 === $offset ) {
+		if ( 1 === $batch ) {
 			$total_assets = wp_count_posts( $this->post_type );
 			$total_count  = $total_assets->publish ?? 0;
 		} else {
@@ -909,6 +1051,7 @@ abstract class AssetsImporter {
 		}
 
 		$downloaded_count = 0;
+		$skipped_count    = 0;
 		$errors           = [];
 
 		foreach ( $assets as $asset_post ) {
@@ -919,10 +1062,34 @@ abstract class AssetsImporter {
 				// Load existing metadata
 				$this->load_asset_metadata( $asset_info, $asset_post->ID );
 
-				// Download and update asset files
-				$this->download_asset_files( $asset_info, $asset_post->ID, $slug );
+				// Track downloads for this asset
+				$asset_download_results = $this->download_asset_files_with_tracking( $asset_info, $asset_post->ID, $slug );
 
-				++$downloaded_count;
+				if ( $asset_download_results['skipped'] ) {
+					++$skipped_count;
+					if ( ! empty( $asset_download_results['skip_reasons'] ) ) {
+						$errors[] = sprintf(
+							/* translators: %1$s: asset title, %2$s: skip reasons */
+							__( 'Skipped downloading files for %1$s: %2$s', 'aspirecloud' ),
+							$asset_post->post_title,
+							implode( ', ', $asset_download_results['skip_reasons'] )
+						);
+					}
+				} else {
+					++$downloaded_count;
+				}
+
+				// Add any specific download errors
+				if ( ! empty( $asset_download_results['errors'] ) ) {
+					foreach ( $asset_download_results['errors'] as $error ) {
+						$errors[] = sprintf(
+							/* translators: %1$s: asset title, %2$s: error message */
+							__( 'Download error for %1$s: %2$s', 'aspirecloud' ),
+							$asset_post->post_title,
+							$error
+						);
+					}
+				}
 			} catch ( \Exception $e ) {
 				$errors[] = sprintf(
 					/* translators: %1$s: asset title, %2$s: error message */
@@ -933,15 +1100,20 @@ abstract class AssetsImporter {
 			}
 		}
 
-		$new_offset   = $offset + $batch_size;
-		$has_more     = count( $assets ) === $batch_size;
-		$total_offset = $offset + $downloaded_count;
+		// Calculate values for response
+		$next_batch      = $batch + 1;
+		$has_more        = count( $assets ) === $per_batch; // More batches if we got a full batch
+		$total_processed = $offset + $downloaded_count + $skipped_count;
 
 		wp_send_json_success(
 			[
 				'downloaded_count' => $downloaded_count,
-				'offset'           => $new_offset,
-				'total_processed'  => $total_offset,
+				'skipped_count'    => $skipped_count,
+				'processed_count'  => $downloaded_count + $skipped_count,
+				'batch'            => $batch,
+				'next_batch'       => $next_batch,
+				'per_batch'        => $per_batch,
+				'total_processed'  => $total_processed,
 				'total_assets'     => $total_count,
 				'has_more'         => $has_more,
 				'errors'           => $errors,
@@ -1194,7 +1366,7 @@ abstract class AssetsImporter {
 	/**
 	 * Abstract method to download asset files.
 	 */
-	abstract protected function download_asset_files( $asset_info, $post_id, $slug );
+	abstract public function download_asset_files( $asset_info, $post_id, $slug );
 
 	/**
 	 * Abstract method to get asset by slug.

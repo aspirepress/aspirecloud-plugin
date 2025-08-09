@@ -28,6 +28,9 @@
 
 			// Bind import button events
 			this.bindImportEvents();
+
+			// Initialize button state based on default checkbox values
+			this.updateImportButtonState();
 		}
 
 		// Detect whether we're on themes or plugins page
@@ -67,6 +70,26 @@
 					self.importAssets.handleDatabaseRecovery();
 				}
 			});
+
+			// Handle import option checkboxes
+			jQuery(document).on('change', '.aspirecloud-import-option', function() {
+				self.updateImportButtonState();
+			});
+		}
+
+		// Update import button state based on checkbox selections
+		updateImportButtonState() {
+			const importMetadata = jQuery('#import-metadata-checkbox').is(':checked');
+			const importFiles = jQuery('#import-files-checkbox').is(':checked');
+			const importButton = jQuery(`#import-${this.assetType}-btn`);
+
+			if (!importMetadata && !importFiles) {
+				// No options selected, disable button
+				importButton.prop('disabled', true).addClass('disabled');
+			} else {
+				// At least one option selected, enable button
+				importButton.prop('disabled', false).removeClass('disabled');
+			}
 		}
 
 		// Get the import assets

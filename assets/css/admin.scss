@@ -439,3 +439,116 @@ $shadow-dark: rgba(0, 0, 0, 0.3);
 		color: #646970;
 	}
 }
+
+// Asset Resync Metabox Styles
+.aspirecloud-resync-actions {
+	margin-bottom: 15px;
+
+	#resync-plugin-btn,
+	#resync-theme-btn {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 12px 16px;
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 1.2;
+		border-radius: 6px;
+		border: 2px solid $primary-color;
+		background: $primary-color;
+		color: $white;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		@include button-hover-effect;
+
+		.dashicons {
+			font-size: 16px;
+			line-height: 1;
+			width: 16px;
+			height: 16px;
+			margin: 0;
+		}
+
+		&:hover:not(.loading) {
+			background: $primary-light;
+			border-color: $primary-light;
+			transform: translateY(-1px);
+			box-shadow: 0 4px 8px rgba($primary-color, 0.3);
+		}
+
+		&:focus {
+			outline: none;
+			box-shadow: 0 0 0 3px rgba($primary-color, 0.2);
+		}
+
+		&:active:not(.loading) {
+			transform: translateY(0);
+			box-shadow: 0 2px 4px rgba($primary-color, 0.2);
+		}
+
+		&.loading {
+			opacity: 0.7;
+			pointer-events: none;
+			cursor: not-allowed;
+
+			.dashicons {
+				animation: spin 1s linear infinite;
+			}
+		}
+	}
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+.aspirecloud-resync-status {
+	margin-top: 10px;
+	padding: 8px;
+	border-radius: 4px;
+
+	&.success {
+		background-color: #d4edda;
+		border: 1px solid #c3e6cb;
+		color: #155724;
+	}
+
+	&.error {
+		background-color: #f8d7da;
+		border: 1px solid #f5c6cb;
+		color: #721c24;
+	}
+
+	&.info {
+		background-color: #d1ecf1;
+		border: 1px solid #bee5eb;
+		color: #0c5460;
+	}
+}
+
+.aspirecloud-resync-progress {
+	margin-top: 10px;
+
+	.progress-bar {
+		width: 100%;
+		height: 20px;
+		background-color: #f1f1f1;
+		border-radius: 10px;
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		background-color: #007cba;
+		transition: width 0.3s ease;
+	}
+
+	.progress-text {
+		margin-top: 5px;
+		font-size: 12px;
+		color: #666;
+	}
+}
