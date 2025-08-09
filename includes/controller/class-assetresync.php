@@ -305,7 +305,7 @@ class AssetResync {
 	 * @param string $slug Plugin slug.
 	 * @return array|false Plugin data or false on failure.
 	 */
-	private function fetch_plugin_data( $slug ) {
+	public function fetch_plugin_data( $slug ) {
 		if ( ! function_exists( 'plugins_api' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		}
@@ -341,7 +341,7 @@ class AssetResync {
 	 * @param string $slug Theme slug.
 	 * @return array|false Theme data or false on failure.
 	 */
-	private function fetch_theme_data( $slug ) {
+	public function fetch_theme_data( $slug ) {
 		if ( ! function_exists( 'themes_api' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/theme.php';
 		}
@@ -378,7 +378,7 @@ class AssetResync {
 	 * @param array  $api_data API data.
 	 * @param string $asset_type Asset type (plugin or theme).
 	 */
-	private function update_asset_data( $post_id, $api_data, $asset_type ) {
+	public function update_asset_data( $post_id, $api_data, $asset_type ) {
 		// Create appropriate asset info object with API data
 		if ( $asset_type === 'plugin' ) {
 			$asset_info = new PluginInfo( $api_data );
@@ -418,7 +418,7 @@ class AssetResync {
 	 * @param array  $api_data API data.
 	 * @param string $asset_type Asset type (plugin or theme).
 	 */
-	private function redownload_asset_files( $post_id, $slug, $api_data, $asset_type ) {
+	public function redownload_asset_files( $post_id, $slug, $api_data, $asset_type ) {
 		// Get the appropriate importer instance
 		if ( $asset_type === 'plugin' ) {
 			$importer = new PluginImport();

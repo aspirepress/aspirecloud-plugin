@@ -73,6 +73,7 @@ abstract class AssetsImporter {
 	protected function register_common_ajax_handlers() {
 		add_action( 'wp_ajax_aspirecloud_restore_database', [ $this, 'ajax_restore_database' ] );
 		add_action( 'wp_ajax_aspirecloud_check_db_optimization', [ $this, 'ajax_check_db_optimization' ] );
+		add_action( 'wp_ajax_aspirecloud_import_csv_batch', [ $this, 'ajax_import_csv_batch' ] );
 	}
 
 	/**
@@ -175,23 +176,28 @@ abstract class AssetsImporter {
 	 */
 	protected function localize_common_scripts( $additional_strings = [] ) {
 		$base_strings = [
-			'importing'           => __( 'Importing...', 'aspirecloud' ),
-			'complete'            => __( 'Import Complete!', 'aspirecloud' ),
-			'error'               => __( 'Import Error!', 'aspirecloud' ),
-			'clearing_data'       => __( 'Clearing data...', 'aspirecloud' ),
-			'data_cleared'        => __( 'Data cleared successfully!', 'aspirecloud' ),
-			'confirm_clear'       => __( 'Are you sure you want to clear all data? This action cannot be undone.', 'aspirecloud' ),
-			'getting_clear_count' => sprintf(
+			'importing'                 => __( 'Importing...', 'aspirecloud' ),
+			'complete'                  => __( 'Import Complete!', 'aspirecloud' ),
+			'error'                     => __( 'Import Error!', 'aspirecloud' ),
+			'clearing_data'             => __( 'Clearing data...', 'aspirecloud' ),
+			'data_cleared'              => __( 'Data cleared successfully!', 'aspirecloud' ),
+			'confirm_clear'             => __( 'Are you sure you want to clear all data? This action cannot be undone.', 'aspirecloud' ),
+			'getting_clear_count'       => sprintf(
 				/* translators: %s: asset type (plugin/theme) */
 				__( 'Getting %s count for clearing...', 'aspirecloud' ),
 				$this->asset_type
 			),
 			/* translators: %1$d: current batch number, %2$d: total batches */
-			'clearing_batch'      => __( 'Clearing batch %1$d of %2$d...', 'aspirecloud' ),
-			'resting'             => __( 'Resting for 30 seconds...', 'aspirecloud' ),
-			'restoring_database'  => __( 'Restoring database features...', 'aspirecloud' ),
-			'database_restored'   => __( 'Database features restored successfully!', 'aspirecloud' ),
-			'confirm_restore'     => __( 'Are you sure you want to restore database features? This should only be done if an import failed.', 'aspirecloud' ),
+			'clearing_batch'            => __( 'Clearing batch %1$d of %2$d...', 'aspirecloud' ),
+			'resting'                   => __( 'Resting for 30 seconds...', 'aspirecloud' ),
+			'restoring_database'        => __( 'Restoring database features...', 'aspirecloud' ),
+			'database_restored'         => __( 'Database features restored successfully!', 'aspirecloud' ),
+			'confirm_restore'           => __( 'Are you sure you want to restore database features? This should only be done if an import failed.', 'aspirecloud' ),
+			'selective_import_start'    => __( 'Starting selective import...', 'aspirecloud' ),
+			'selective_import_complete' => __( 'Selective import complete!', 'aspirecloud' ),
+			'no_slugs_provided'         => __( 'No slugs provided for import.', 'aspirecloud' ),
+			'invalid_slugs'             => __( 'Please enter valid asset slugs separated by commas.', 'aspirecloud' ),
+			'too_many_slugs'            => __( 'Please limit to 10 slugs per import for better performance.', 'aspirecloud' ),
 		];
 
 		$strings = array_merge( $base_strings, $additional_strings );
@@ -245,16 +251,42 @@ abstract class AssetsImporter {
 					<h4><?php esc_html_e( 'Import Options', 'aspirecloud' ); ?></h4>
 					<div class="aspirecloud-checkbox-container">
 						<label class="aspirecloud-checkbox-wrapper">
-							<input type="checkbox" id="import-metadata-checkbox" class="aspirecloud-import-option" checked="checked">
-							<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Metadata', 'aspirecloud' ); ?></span>
-							<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import plugin/theme metadata from the repository', 'aspirecloud' ); ?></span>
+							<input type="checkbox" id="bulk-import-checkbox" class="aspirecloud-import-option" checked="checked">
+							<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Bulk Import', 'aspirecloud' ); ?></span>
+							<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Import all available assets from the repository', 'aspirecloud' ); ?></span>
 						</label>
 
-						<label class="aspirecloud-checkbox-wrapper">
-							<input type="checkbox" id="import-files-checkbox" class="aspirecloud-import-option" checked="checked">
-							<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Files', 'aspirecloud' ); ?></span>
-							<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import actual plugin/theme files', 'aspirecloud' ); ?></span>
-						</label>
+						<div id="bulk-import-options" class="aspirecloud-bulk-options">
+							<label class="aspirecloud-checkbox-wrapper">
+								<input type="checkbox" id="import-metadata-checkbox" class="aspirecloud-import-option" checked="checked">
+								<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Metadata', 'aspirecloud' ); ?></span>
+								<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import plugin/theme metadata from the repository', 'aspirecloud' ); ?></span>
+							</label>
+
+							<label class="aspirecloud-checkbox-wrapper">
+								<input type="checkbox" id="import-files-checkbox" class="aspirecloud-import-option" checked="checked">
+								<span class="aspirecloud-checkbox-label"><?php esc_html_e( 'Import Files', 'aspirecloud' ); ?></span>
+								<span class="aspirecloud-checkbox-description"><?php esc_html_e( 'Download and import actual plugin/theme files', 'aspirecloud' ); ?></span>
+							</label>
+						</div>
+
+						<div id="selective-import-options" class="aspirecloud-selective-options" style="display: none;">
+							<label class="aspirecloud-textarea-wrapper">
+								<span class="aspirecloud-textarea-label">
+									<?php
+									/* translators: %s: asset type (plugin/theme) */
+									printf( esc_html__( 'Enter %s slugs to import (comma-separated)', 'aspirecloud' ), esc_html( ucfirst( $this->asset_type ) ) );
+									?>
+								</span>
+								<textarea id="import-slugs-textarea" class="aspirecloud-slugs-input" rows="4" placeholder="<?php esc_attr_e( 'e.g., akismet, jetpack, hello-dolly', 'aspirecloud' ); ?>"></textarea>
+								<span class="aspirecloud-textarea-description">
+									<?php
+									/* translators: %s: asset type (plugin/theme) */
+									printf( esc_html__( 'Enter %s slugs in CSV format. You can enter one slug per line or multiple slugs separated by commas. All data will be processed as CSV bulk import.', 'aspirecloud' ), esc_html( $this->asset_type ) );
+									?>
+								</span>
+							</label>
+						</div>
 					</div>
 				</div>
 
@@ -1320,6 +1352,188 @@ abstract class AssetsImporter {
 					'error'   => $e->getMessage(),
 				]
 			);
+		}
+	}
+
+	/**
+	 * AJAX handler for importing assets from CSV batch.
+	 * Processes a batch of slugs for bulk import using AssetResync methods.
+	 */
+	public function ajax_import_csv_batch() {
+		$this->check_ajax_permissions();
+
+		// Include download functions
+		if ( ! function_exists( 'download_url' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		// Get the slugs from the request
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verification is done in check_ajax_permissions()
+		$slugs_input = isset( $_POST['slugs'] ) ? sanitize_textarea_field( wp_unslash( $_POST['slugs'] ) ) : '';
+
+		if ( empty( $slugs_input ) ) {
+			wp_send_json_error( __( 'No slugs provided for batch import.', 'aspirecloud' ) );
+		}
+
+		// Parse and validate slugs
+		$slugs = array_map( 'trim', explode( ',', $slugs_input ) );
+		$slugs = array_filter(
+			$slugs,
+			function ( $slug ) {
+				return ! empty( $slug ) && preg_match( '/^[a-z0-9\-_]+$/i', $slug );
+			}
+		);
+
+		if ( empty( $slugs ) ) {
+			wp_send_json_error( __( 'No valid slugs found in the batch.', 'aspirecloud' ) );
+		}
+
+		// Limit the number of slugs per batch
+		if ( count( $slugs ) > 50 ) {
+			wp_send_json_error( __( 'Too many slugs provided. Please limit to 50 slugs per batch.', 'aspirecloud' ) );
+		}
+
+		$results = [
+			'imported'       => [],
+			'skipped'        => [],
+			'errors'         => [],
+			'imported_count' => 0,
+			'skipped_count'  => 0,
+			'error_count'    => 0,
+		];
+
+		// Import each slug using AssetResync methods
+		foreach ( $slugs as $slug ) {
+			try {
+				$import_result = $this->import_single_asset_via_resync( $slug );
+
+				if ( $import_result['success'] ) {
+					$results['imported'][] = $slug;
+					++$results['imported_count'];
+				} elseif ( $import_result['skipped'] ) {
+					$results['skipped'][] = [
+						'slug'   => $slug,
+						'reason' => $import_result['reason'],
+					];
+					++$results['skipped_count'];
+				} else {
+					$results['errors'][] = [
+						'slug'    => $slug,
+						'message' => $import_result['error'],
+					];
+					++$results['error_count'];
+				}
+			} catch ( \Exception $e ) {
+				$results['errors'][] = [
+					'slug'    => $slug,
+					'message' => $e->getMessage(),
+				];
+				++$results['error_count'];
+			}
+		}
+
+		wp_send_json_success( $results );
+	}
+
+	/**
+	 * Import a single asset by slug.
+	 * This method should be overridden by child classes.
+	 *
+	 * @param string $slug Asset slug to import.
+	 * @return array Import result with success/error information.
+	 *
+	 * @SuppressWarnings(PHPMD.UnusedFormalParameter)
+	 */
+	protected function import_single_asset_by_slug( $slug ) {
+		return [
+			'success' => false,
+			'skipped' => false,
+			'error'   => __( 'Method not implemented by child class.', 'aspirecloud' ),
+		];
+	}
+
+	/**
+	 * Import a single asset by slug using AssetResync methods.
+	 * This method uses the AssetResync class to import individual assets.
+	 *
+	 * @param string $slug Asset slug to import.
+	 * @return array Import result with success/error information.
+	 */
+	protected function import_single_asset_via_resync( $slug ) {
+		try {
+			// Check if asset already exists
+			$existing_post = $this->get_asset_by_slug( $slug );
+
+			// Create an AssetResync instance to use its methods
+			$asset_resync = new \AspireCloud\Controller\AssetResync();
+
+			// Fetch asset data using AssetResync methods
+			if ( 'plugin' === $this->asset_type ) {
+				$api_data = $asset_resync->fetch_plugin_data( $slug );
+			} else {
+				$api_data = $asset_resync->fetch_theme_data( $slug );
+			}
+
+			if ( ! $api_data ) {
+				return [
+					'success' => false,
+					'skipped' => true,
+					'reason'  => sprintf(
+						/* translators: %s: asset slug */
+						__( 'Asset %s not found in WordPress.org repository', 'aspirecloud' ),
+						$slug
+					),
+				];
+			}
+
+			// If asset exists, update it; otherwise create new
+			if ( $existing_post ) {
+				$post_id = $existing_post->ID;
+				$asset_resync->update_asset_data( $post_id, $api_data, $this->asset_type );
+				$asset_resync->redownload_asset_files( $post_id, $slug, $api_data, $this->asset_type );
+			} else {
+				// Create new asset post
+				$post_title = sanitize_text_field( $api_data['name'] ?? $slug );
+				$post_name  = sanitize_title( $slug );
+
+				$post_id = wp_insert_post(
+					[
+						'post_title'    => $post_title,
+						'post_name'     => $post_name,
+						'post_type'     => $this->post_type,
+						'post_status'   => 'publish',
+						'post_content'  => $api_data['description'] ?? '',
+						'post_excerpt'  => $api_data['short_description'] ?? '',
+						'post_date'     => current_time( 'mysql' ),
+						'post_date_gmt' => current_time( 'mysql', 1 ),
+					]
+				);
+
+				if ( is_wp_error( $post_id ) ) {
+					throw new \Exception( 'Failed to create asset post: ' . $post_id->get_error_message() );
+				}
+
+				// Update metadata and download files
+				$asset_resync->update_asset_data( $post_id, $api_data, $this->asset_type );
+				$asset_resync->redownload_asset_files( $post_id, $slug, $api_data, $this->asset_type );
+			}
+
+			return [
+				'success' => true,
+				'skipped' => false,
+			];
+
+		} catch ( \Exception $e ) {
+			return [
+				'success' => false,
+				'skipped' => false,
+				'error'   => sprintf(
+					/* translators: %1$s: asset slug, %2$s: error message */
+					__( 'Error importing asset %1$s: %2$s', 'aspirecloud' ),
+					$slug,
+					$e->getMessage()
+				),
+			];
 		}
 	}
 

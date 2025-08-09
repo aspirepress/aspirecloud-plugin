@@ -4,47 +4,58 @@
  * Handles the client-side functionality for syncing plugins and themes.
  */
 
-(function($) {
+(function(jQuery) {
 	'use strict';
 
 	/**
 	 * Sync functionality
 	 */
 	const AssetResync = {
-		init: function() {
+		// Element selectors
+		selectors: {
+			resyncButtons: '#resync-plugin-btn, #resync-theme-btn',
+			resyncStatus: '#resync-status',
+			resyncMessage: '.resync-message',
+			resyncProgress: '#resync-progress',
+			progressFill: '.progress-fill',
+			progressText: '.progress-text',
+			currentVersion: '#current-version',
+			reloadPageLink: '.aspirecloud-reload-page'
+		},
+
+		init() {
 			this.bindEvents();
 		},
 
-		bindEvents: function() {
-			$(document).on('click', '#resync-plugin-btn, #resync-theme-btn', this.handleResyncClick.bind(this));
+		bindEvents() {
+			jQuery(document).on('click', this.selectors.resyncButtons, this.handleResyncClick.bind(this));
 		},
 
-		handleResyncClick: function(e) {
+		handleResyncClick(e) {
 			e.preventDefault();
 
-			const $button = $(e.currentTarget);
-			const postId = $button.data('post-id');
-			const slug = $button.data('slug');
-			const assetType = $button.data('asset-type');
+			const button = jQuery(e.currentTarget);
+			const postId = button.data('post-id');
+			const slug = button.data('slug');
+			const assetType = button.data('asset-type');
 
 			if (!postId || !slug || !assetType) {
 				this.showStatus('error', aspirecloud_resync.strings.network_error);
 				return;
 			}
 
-			this.startResync($button, postId, slug, assetType);
+			this.startResync(button, postId, slug, assetType);
 		},
 
-		startResync: function($button, postId, slug, assetType) {
+		startResync(button, postId, slug, assetType) {
 			// Disable button and show loading state
-			$button.addClass('loading');
-			$button.prop('disabled', true);
+			button.addClass('loading').prop('disabled', true);
 
 			// Show progress
 			this.showProgress(0, aspirecloud_resync.strings.checking_version);
 
 			// Make AJAX request
-			$.ajax({
+			jQuery.ajax({
 				url: aspirecloud_resync.ajax_url,
 				type: 'POST',
 				data: {
@@ -53,15 +64,14 @@
 					slug: slug,
 					nonce: aspirecloud_resync.nonce
 				},
-				success: this.handleResyncSuccess.bind(this, $button),
-				error: this.handleResyncError.bind(this, $button)
+				success: (response) => this.handleResyncSuccess(button, response),
+				error: (jqXHR, textStatus, errorThrown) => this.handleResyncError(button, jqXHR, textStatus, errorThrown)
 			});
 		},
 
-		handleResyncSuccess: function($button, response) {
+		handleResyncSuccess(button, response) {
 			// Re-enable button
-			$button.removeClass('loading');
-			$button.prop('disabled', false);
+			button.removeClass('loading').prop('disabled', false);
 
 			if (response.success) {
 				const data = response.data;
@@ -71,7 +81,7 @@
 					this.hideProgress();
 				} else if (data.action === 'updated') {
 					// Update the current version display
-					$('#current-version').text(data.latest_version);
+					jQuery(this.selectors.currentVersion).text(data.latest_version);
 
 					// Show success message
 					this.showStatus('success', data.message);
@@ -89,81 +99,64 @@
 			}
 		},
 
-		handleResyncError: function($button, jqXHR, textStatus, errorThrown) {
+		handleResyncError(button, jqXHR, textStatus, errorThrown) {
 			// Re-enable button
-			$button.removeClass('loading');
-			$button.prop('disabled', false);
+			button.removeClass('loading').prop('disabled', false);
 
-			let errorMessage = aspirecloud_resync.strings.network_error;
-
-			if (jqXHR.responseJSON && jqXHR.responseJSON.data) {
-				errorMessage = jqXHR.responseJSON.data;
-			} else if (errorThrown) {
-				errorMessage = errorThrown;
-			}
-
+			const errorMessage = jqXHR.responseJSON?.data || errorThrown || aspirecloud_resync.strings.network_error;
 			this.showStatus('error', errorMessage);
 			this.hideProgress();
 		},
 
-		showStatus: function(type, message) {
-			const $container = $('#resync-status');
-			const $message = $container.find('.resync-message');
+		showStatus(type, message) {
+			const container = jQuery(this.selectors.resyncStatus);
+			const messageElement = container.find(this.selectors.resyncMessage);
 
-			// Remove existing classes
-			$container.removeClass('success error info');
-
-			// Add appropriate class and message
-			$container.addClass(type);
-			$message.text(message);
-			$container.show();
+			// Update classes and message
+			container.removeClass('success error info').addClass(type);
+			messageElement.text(message);
+			container.show();
 		},
 
-		showRefreshMessage: function() {
-			const $container = $('#resync-status');
-			const $message = $container.find('.resync-message');
+		showRefreshMessage() {
+			const container = jQuery(this.selectors.resyncStatus);
+			const messageElement = container.find(this.selectors.resyncMessage);
 
 			// Create refresh message with reload link
 			const refreshMessage = aspirecloud_resync.strings.refresh_message + ' ';
-			const reloadLink = '<a href="#" class="aspirecloud-reload-page" style="text-decoration: underline; font-weight: bold;">' + 
+			const reloadLink = '<a href="#" class="aspirecloud-reload-page" style="text-decoration: underline; font-weight: bold;">' +
 							   aspirecloud_resync.strings.reload_link_text + '</a>';
 
-			// Remove existing classes and add success class
-			$container.removeClass('success error info');
-			$container.addClass('success');
-			
-			// Set HTML content instead of text to include the link
-			$message.html(refreshMessage + reloadLink);
-			$container.show();
+			// Update container and set HTML content
+			container.removeClass('success error info').addClass('success');
+			messageElement.html(refreshMessage + reloadLink);
+			container.show();
 
 			// Bind click event to reload link
-			$(document).off('click.aspirecloud-reload').on('click.aspirecloud-reload', '.aspirecloud-reload-page', function(e) {
+			jQuery(document).off('click.aspirecloud-reload').on('click.aspirecloud-reload', this.selectors.reloadPageLink, (e) => {
 				e.preventDefault();
 				window.location.reload();
 			});
 		},
 
-		hideStatus: function() {
-			$('#resync-status').hide();
+		hideStatus() {
+			jQuery(this.selectors.resyncStatus).hide();
 		},
 
-		showProgress: function(percentage, text) {
-			const $container = $('#resync-progress');
-			const $fill = $container.find('.progress-fill');
-			const $text = $container.find('.progress-text');
-
-			$fill.css('width', percentage + '%');
-			$text.text(text);
-			$container.show();
+		showProgress(percentage, text) {
+			const container = jQuery(this.selectors.resyncProgress);
+			container.find(this.selectors.progressFill).css('width', percentage + '%');
+			container.find(this.selectors.progressText).text(text);
+			container.show();
 		},
 
-		hideProgress: function() {
-			$('#resync-progress').hide();
+		hideProgress() {
+			jQuery(this.selectors.resyncProgress).hide();
 		}
 	};
 
 	// Initialize when document is ready
-	$(document).ready(function() {
+	jQuery(document).ready(() => {
 		AssetResync.init();
 	});
 

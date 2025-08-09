@@ -99,8 +99,6 @@ class MetadataImporter {
 	}
 
 	start() {
-		const self = this;
-
 		this.parent.logger.log('INFO', 'Getting total asset count for metadata import');
 
 		if (this.progressBar) {
@@ -110,34 +108,32 @@ class MetadataImporter {
 
 		// First get the total count
 		this.parent.getTotalAssetsCount()
-			.done(function (response) {
+			.done((response) => {
 				if (response.success) {
-					self.config.totalAssets = response.data.total;
-					self.config.totalBatches = Math.ceil(response.data.total / self.config.batchSize);
+					this.config.totalAssets = response.data.total;
+					this.config.totalBatches = Math.ceil(response.data.total / this.config.batchSize);
 
-					self.parent.logger.log('SUCCESS', `Total asset count retrieved: ${response.data.total} items`,
-						`Will process in ${self.config.totalBatches} batches of ${self.config.batchSize} items each`);
+					this.parent.logger.log('SUCCESS', `Total asset count retrieved: ${response.data.total} items`,
+						`Will process in ${this.config.totalBatches} batches of ${this.config.batchSize} items each`);
 
-					if (self.progressBar) {
-						self.progressBar.updateStatus(aspirecloud_ajax.strings.starting_metadata_import || 'Starting metadata import...');
+					if (this.progressBar) {
+						this.progressBar.updateStatus(aspirecloud_ajax.strings.starting_metadata_import || 'Starting metadata import...');
 					}
 
 					// Start importing metadata
-					self.processNextBatch();
+					this.processNextBatch();
 				} else {
-					self.parent.logger.log('ERROR', 'Failed to get total asset count', response.data || aspirecloud_ajax.strings.error);
-					self.parent.handleError(response.data || aspirecloud_ajax.strings.error);
+					this.parent.logger.log('ERROR', 'Failed to get total asset count', response.data || aspirecloud_ajax.strings.error);
+					this.parent.handleError(response.data || aspirecloud_ajax.strings.error);
 				}
 			})
-			.fail(function () {
-				self.parent.logger.log('ERROR', 'AJAX request failed while getting total asset count');
-				self.parent.handleError(aspirecloud_ajax.strings.error);
+			.fail(() => {
+				this.parent.logger.log('ERROR', 'AJAX request failed while getting total asset count');
+				this.parent.handleError(aspirecloud_ajax.strings.error);
 			});
 	}
 
 	processNextBatch() {
-		const self = this;
-
 		// Loop protection - check for excessive calls
 		this.loopProtection.processCalls++;
 		const currentTime = Date.now();
@@ -159,25 +155,25 @@ class MetadataImporter {
 		this.cleanupStuckBatches();
 
 		// Start parallel batches
-		while (self.config.activeBatches < self.config.parallelBatches &&
-			self.config.batch <= self.config.totalBatches) {
+		while (this.config.activeBatches < this.config.parallelBatches &&
+			this.config.batch <= this.config.totalBatches) {
 
-			const currentBatch = self.config.batch;
-			self.config.batch++;
-			self.config.activeBatches++;
+			const currentBatch = this.config.batch;
+			this.config.batch++;
+			this.config.activeBatches++;
 
-			self.processSingleBatch(currentBatch);
+			this.processSingleBatch(currentBatch);
 		}
 
 		// Check if all batches are complete
-		if (self.config.batch > self.config.totalBatches) {
-			if (self.config.activeBatches === 0) {
-				self.complete();
+		if (this.config.batch > this.config.totalBatches) {
+			if (this.config.activeBatches === 0) {
+				this.complete();
 			} else {
 				// Wait a bit longer for active batches to complete
-				this.parent.logger.log(`Waiting for ${self.config.activeBatches} active metadata batches to complete...`, 'warning');
+				this.parent.logger.log(`Waiting for ${this.config.activeBatches} active metadata batches to complete...`, 'warning');
 				setTimeout(() => {
-					self.processNextBatch();
+					this.processNextBatch();
 				}, 1000);
 			}
 		}
