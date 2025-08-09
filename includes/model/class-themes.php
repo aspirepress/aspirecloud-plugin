@@ -77,7 +77,7 @@ class Themes {
 			'label'               => __( 'Theme', 'aspirecloud' ),
 			'description'         => __( 'WordPress Theme Repository', 'aspirecloud' ),
 			'labels'              => $labels,
-			'supports'            => [ 'title', 'editor', 'thumbnail', 'custom-fields' ],
+			'supports'            => [ 'title' ],
 			'taxonomies'          => [],
 			'hierarchical'        => false,
 			'public'              => true,

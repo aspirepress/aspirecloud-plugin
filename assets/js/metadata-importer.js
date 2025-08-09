@@ -37,6 +37,16 @@ class MetadataImporter {
 			retryMap: new Map() // Track retry attempts per batch
 		};
 
+		// Loop protection safeguards
+		this.loopProtection = {
+			maxProcessCalls: 500,           // Maximum calls to processNextBatch
+			processCalls: 0,                // Current call count
+			lastProcessTime: 0,             // Last process timestamp
+			stuckDetectionInterval: 30000,  // 30 seconds to detect stuck state
+			maxBatchTime: 180000,           // 3 minutes max for any batch
+			activeBatchTimes: new Map()     // Track when each batch started
+		};
+
 		// Initialize performance tracker
 		this.performanceTracker = new PerformanceTracker({
 			maxParallelBatches: this.config.parallelBatches,
@@ -128,6 +138,26 @@ class MetadataImporter {
 	processNextBatch() {
 		const self = this;
 
+		// Loop protection - check for excessive calls
+		this.loopProtection.processCalls++;
+		const currentTime = Date.now();
+
+		// Reset counter if enough time has passed
+		if (currentTime - this.loopProtection.lastProcessTime > this.loopProtection.stuckDetectionInterval) {
+			this.loopProtection.processCalls = 1;
+		}
+		this.loopProtection.lastProcessTime = currentTime;
+
+		// Emergency brake for infinite loops
+		if (this.loopProtection.processCalls > this.loopProtection.maxProcessCalls) {
+			this.parent.logger.log('ERROR: Too many processNextBatch calls detected - emergency stop', 'error');
+			this.handleEmergencyStop('MAX_PROCESS_CALLS_EXCEEDED');
+			return;
+		}
+
+		// Check for stuck batches
+		this.cleanupStuckBatches();
+
 		// Start parallel batches
 		while (self.config.activeBatches < self.config.parallelBatches &&
 			self.config.batch <= self.config.totalBatches) {
@@ -140,15 +170,25 @@ class MetadataImporter {
 		}
 
 		// Check if all batches are complete
-		if (self.config.batch > self.config.totalBatches &&
-			self.config.activeBatches === 0) {
-			self.complete();
+		if (self.config.batch > self.config.totalBatches) {
+			if (self.config.activeBatches === 0) {
+				self.complete();
+			} else {
+				// Wait a bit longer for active batches to complete
+				this.parent.logger.log(`Waiting for ${self.config.activeBatches} active metadata batches to complete...`, 'warning');
+				setTimeout(() => {
+					self.processNextBatch();
+				}, 1000);
+			}
 		}
 	}
 
 	processSingleBatch(batchNumber) {
 		const self = this;
 		const startTime = Date.now();
+
+		// Track when this batch started for stuck detection
+		this.loopProtection.activeBatchTimes.set(batchNumber, startTime);
 
 		// Update parallel batch count from performance tracker
 		this.config.parallelBatches = this.performanceTracker.getCurrentParallelBatches();
@@ -175,14 +215,22 @@ class MetadataImporter {
 				const duration = Date.now() - startTime;
 				self.performanceTracker.recordCallDuration(duration);
 
+				// Clean up batch tracking
+				self.loopProtection.activeBatchTimes.delete(batchNumber);
+				self.config.activeBatches = Math.max(0, self.config.activeBatches - 1);
+
 				if (response.success) {
 					// Remove from retry map on success
 					self.retryConfig.retryMap.delete(batchNumber);
 
 					self.config.importedCount += response.data.imported_count;
 
+					// Safely handle average duration calculation
+					const avgDuration = self.performanceTracker.getAverageDuration();
+					const avgDurationText = isNaN(avgDuration) ? '0' : avgDuration.toFixed(0);
+
 					self.parent.logger.log('SUCCESS', `Metadata batch ${batchNumber} completed in ${duration}ms${retryText}`,
-						`Imported: ${response.data.imported_count} items, Total: ${self.config.importedCount}, Avg: ${self.performanceTracker.getAverageDuration().toFixed(0)}ms`);
+						`Imported: ${response.data.imported_count} items, Total: ${self.config.importedCount}, Avg: ${avgDurationText}ms`);
 
 					// Add errors if any
 					if (response.data.errors && response.data.errors.length > 0) {
@@ -191,7 +239,6 @@ class MetadataImporter {
 					}
 
 					self.updateProgress();
-					self.config.activeBatches--;
 
 					// Check if we should rest (every 50 batches)
 					if (batchNumber % 50 === 0) {
@@ -216,6 +263,10 @@ class MetadataImporter {
 				const duration = Date.now() - startTime;
 				self.performanceTracker.recordCallDuration(duration);
 
+				// Clean up batch tracking
+				self.loopProtection.activeBatchTimes.delete(batchNumber);
+				self.config.activeBatches = Math.max(0, self.config.activeBatches - 1);
+
 				const errorMsg = `AJAX request failed: ${textStatus} - ${errorThrown}`;
 				self.parent.logger.log('ERROR', `AJAX request failed for metadata batch ${batchNumber} after ${duration}ms${retryText}`, errorMsg);
 				self.handleBatchFailure(batchNumber, errorMsg);
@@ -231,17 +282,31 @@ class MetadataImporter {
 		const self = this;
 		const currentRetries = this.retryConfig.retryMap.get(batchNumber) || 0;
 
+		// Circuit breaker: Check if too many failures are happening
+		const recentFailures = Array.from(this.retryConfig.retryMap.values()).reduce((sum, count) => sum + count, 0);
+		const maxTotalRetries = this.config.totalBatches * 2; // Allow max 2 retries per batch total
+
+		if (recentFailures > maxTotalRetries) {
+			this.parent.logger.log('ERROR', 'Circuit breaker triggered - too many metadata failures across all batches', `${recentFailures} total retries exceed limit of ${maxTotalRetries}`);
+			this.handleEmergencyStop('CIRCUIT_BREAKER_TRIGGERED');
+			return;
+		}
+
 		if (currentRetries < this.retryConfig.maxRetries) {
 			// Increment retry count
 			this.retryConfig.retryMap.set(batchNumber, currentRetries + 1);
 
-			this.parent.logger.log('WARNING', `Retrying metadata batch ${batchNumber} (attempt ${currentRetries + 1}/${this.retryConfig.maxRetries})`,
-				`Will retry in ${this.retryConfig.retryDelay}ms`);
+			// Exponential backoff for retries
+			const delayMultiplier = Math.pow(2, currentRetries);
+			const retryDelay = Math.min(this.retryConfig.retryDelay * delayMultiplier, 20000); // Max 20 seconds
 
-			// Retry after delay
+			this.parent.logger.log('WARNING', `Retrying metadata batch ${batchNumber} (attempt ${currentRetries + 1}/${this.retryConfig.maxRetries})`,
+				`Will retry in ${retryDelay}ms`);
+
+			// Retry after exponential backoff delay
 			setTimeout(function() {
 				self.processSingleBatch(batchNumber);
-			}, this.retryConfig.retryDelay);
+			}, retryDelay);
 		} else {
 			// Max retries exceeded, give up on this batch
 			this.parent.logger.log('ERROR', `Metadata batch ${batchNumber} failed permanently after ${this.retryConfig.maxRetries} retries`,
@@ -250,14 +315,16 @@ class MetadataImporter {
 			// Remove from retry map
 			this.retryConfig.retryMap.delete(batchNumber);
 
+			// Decrement active batches counter (was missing in retry path)
+			this.config.activeBatches = Math.max(0, this.config.activeBatches - 1);
+
 			// Continue with next batch instead of failing entire import
-			this.config.activeBatches--;
 			setTimeout(function () {
 				self.processNextBatch();
 			}, 100);
 
 			// Add error to parent but don't stop the import
-			this.parent.addError(`Batch ${batchNumber} failed permanently: ${errorMessage}`);
+			this.parent.addError(`Metadata batch ${batchNumber} failed permanently: ${errorMessage}`);
 		}
 	}
 
@@ -279,7 +346,17 @@ class MetadataImporter {
 	updateProgress() {
 		if (!this.progressBar) return;
 
-		const percentage = Math.round((this.config.batch - 1) / this.config.totalBatches * 50);
+		// Calculate progress based on which phases are selected
+		let maxProgress = 50; // Default 50% for metadata phase
+		if (this.parent.config.importMetadata && !this.parent.config.importFiles) {
+			// Only metadata phase selected, use full 100%
+			maxProgress = 100;
+		} else if (this.parent.config.importMetadata && this.parent.config.importFiles) {
+			// Both phases selected, metadata gets 50%
+			maxProgress = 50;
+		}
+
+		const percentage = Math.round((this.config.batch - 1) / this.config.totalBatches * maxProgress);
 		this.progressBar.updateProgress(percentage);
 
 		// Use the actual total assets count
@@ -305,6 +382,54 @@ class MetadataImporter {
 
 		// Notify parent that metadata import is complete
 		this.parent.onMetadataImportComplete();
+	}
+
+	/**
+	 * Clean up batches that have been active for too long
+	 */
+	cleanupStuckBatches() {
+		const currentTime = Date.now();
+		const stuckBatches = [];
+
+		for (const [batchNumber, startTime] of this.loopProtection.activeBatchTimes) {
+			if (currentTime - startTime > this.loopProtection.maxBatchTime) {
+				stuckBatches.push(batchNumber);
+			}
+		}
+
+		if (stuckBatches.length > 0) {
+			this.parent.logger.log(`Cleaning up ${stuckBatches.length} stuck metadata batches: ${stuckBatches.join(', ')}`, 'warning');
+
+			for (const batchNumber of stuckBatches) {
+				this.loopProtection.activeBatchTimes.delete(batchNumber);
+				this.config.activeBatches = Math.max(0, this.config.activeBatches - 1);
+
+				// Log the stuck batch
+				this.parent.logger.log(`Metadata batch ${batchNumber} was stuck for ${this.loopProtection.maxBatchTime/1000}s - force cleaned`, 'warning');
+			}
+		}
+	}
+
+	/**
+	 * Handle emergency stop scenarios
+	 */
+	handleEmergencyStop(reason) {
+		this.parent.logger.log(`Emergency stop triggered: ${reason}`, 'error');
+
+		// Clear all tracking
+		this.loopProtection.activeBatchTimes.clear();
+		this.config.activeBatches = 0;
+
+		// Add error to parent
+		this.parent.addError(`Metadata import process emergency stopped: ${reason}. Please try again or contact support.`);
+
+		// Complete with error state
+		this.parent.onPhaseComplete('metadata', {
+			imported: this.config.importedCount,
+			errors: this.parent.errors,
+			emergencyStop: true,
+			reason: reason
+		});
 	}
 }
 

@@ -112,17 +112,28 @@ class PerformanceTracker {
 			}
 			return true;
 		}
-		// If performance is significantly better than baseline and we're below max, increase batches
-		else if (deviation < -threshold && this.currentParallelBatches < this.maxParallelBatches) {
-			this.currentParallelBatches = Math.min(this.maxParallelBatches, this.currentParallelBatches + 1);
-			this.metrics.lastAdjustmentTime = now;
+		// Scale up more aggressively: if we're below max and performance is stable or improving
+		else if (this.currentParallelBatches < this.maxParallelBatches &&
+				 (deviation < threshold || (deviation <= 0 && this.currentParallelBatches < this.maxParallelBatches))) {
 
-			if (this.logger) {
-				this.logger.log('SUCCESS',
-					`${this.context} performance improved (${(Math.abs(deviation) * 100).toFixed(1)}%), increasing parallel batches to ${this.currentParallelBatches}`,
-					`Average: ${currentAverage.toFixed(0)}ms, Baseline: ${baseline.toFixed(0)}ms`);
+			// Additional check: make sure recent performance is consistently good
+			const recentSampleSize = Math.min(5, this.config.baselineCallCount);
+			const recentDurations = this.metrics.durations.slice(-recentSampleSize);
+			const recentAverage = recentDurations.reduce((a, b) => a + b, 0) / recentDurations.length;
+			const recentDeviation = (recentAverage - baseline) / baseline;
+
+			// Scale up if recent performance is stable (not worse than threshold)
+			if (recentDeviation <= threshold) {
+				this.currentParallelBatches = Math.min(this.maxParallelBatches, this.currentParallelBatches + 1);
+				this.metrics.lastAdjustmentTime = now;
+
+				if (this.logger) {
+					this.logger.log('SUCCESS',
+						`${this.context} performance stable, increasing parallel batches to ${this.currentParallelBatches}`,
+						`Recent avg: ${recentAverage.toFixed(0)}ms, Overall avg: ${currentAverage.toFixed(0)}ms, Baseline: ${baseline.toFixed(0)}ms`);
+				}
+				return true;
 			}
-			return true;
 		}
 
 		return false;

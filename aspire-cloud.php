@@ -95,5 +95,6 @@ function aspire_cloud_init() {
 	if ( is_admin() ) {
 		new \AspireCloud\Controller\PluginImport();
 		new \AspireCloud\Controller\ThemeImport();
+		new \AspireCloud\Controller\AssetResync();
 	}
 }

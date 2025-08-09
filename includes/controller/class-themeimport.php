@@ -106,7 +106,7 @@ class ThemeImport extends AssetsImporter {
 	public function render_admin_page() {
 		$this->render_common_admin_page(
 			__( 'Import Themes', 'aspirecloud' ),
-			__( 'Import all themes from the WordPress.org repository into your local database.', 'aspirecloud' ),
+			__( 'Import all themes from the connected repository into your local database.', 'aspirecloud' ),
 			__( 'Import All Themes', 'aspirecloud' ),
 			'import-themes-btn',
 			__( 'Clear Theme Data', 'aspirecloud' ),
@@ -240,7 +240,7 @@ class ThemeImport extends AssetsImporter {
 	/**
 	 * Download theme files and update metadata.
 	 */
-	protected function download_asset_files( $asset_info, $post_id, $slug ) {
+	public function download_asset_files( $asset_info, $post_id, $slug ) {
 		$aspire_dir = $this->create_asset_directory( $slug, 'themes' );
 
 		// Download screenshot

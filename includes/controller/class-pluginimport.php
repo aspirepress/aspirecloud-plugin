@@ -122,7 +122,7 @@ class PluginImport extends AssetsImporter {
 		if ( ! function_exists( 'plugins_api' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		}
-    
+
 		$count_response = plugins_api(
 			'query_plugins',
 			[
@@ -240,24 +240,41 @@ class PluginImport extends AssetsImporter {
 	/**
 	 * Download plugin files and update metadata.
 	 */
-	protected function download_asset_files( $asset_info, $post_id, $slug ) {
+	public function download_asset_files( $asset_info, $post_id, $slug ) {
 		$aspire_dir = $this->create_asset_directory( $slug, 'plugins' );
+
+		// Check if directory creation failed
+		if ( false === $aspire_dir ) {
+			throw new \Exception( sprintf( 'Failed to create directory for plugin: %s', esc_html( $slug ) ) );
+		}
 
 		// Download banners
 		$banners = get_post_meta( $post_id, '__banners', true );
 		if ( ! empty( $banners ) ) {
-			$local_banners = $this->download_image_assets( $banners, $aspire_dir, $slug, 'plugins', 'banner' );
-			if ( ! empty( $local_banners ) ) {
-				update_post_meta( $post_id, '__banners', $local_banners );
+			// Decode JSON if it's a string
+			if ( is_string( $banners ) ) {
+				$banners = json_decode( $banners, true );
+			}
+			if ( is_array( $banners ) ) {
+				$local_banners = $this->download_image_assets( $banners, $aspire_dir, $slug, 'plugins', 'banner' );
+				if ( ! empty( $local_banners ) ) {
+					update_post_meta( $post_id, '__banners', $local_banners );
+				}
 			}
 		}
 
 		// Download icons
 		$icons = get_post_meta( $post_id, '__icons', true );
 		if ( ! empty( $icons ) ) {
-			$local_icons = $this->download_image_assets( $icons, $aspire_dir, $slug, 'plugins', 'icon' );
-			if ( ! empty( $local_icons ) ) {
-				update_post_meta( $post_id, '__icons', $local_icons );
+			// Decode JSON if it's a string
+			if ( is_string( $icons ) ) {
+				$icons = json_decode( $icons, true );
+			}
+			if ( is_array( $icons ) ) {
+				$local_icons = $this->download_image_assets( $icons, $aspire_dir, $slug, 'plugins', 'icon' );
+				if ( ! empty( $local_icons ) ) {
+					update_post_meta( $post_id, '__icons', $local_icons );
+				}
 			}
 		}
 

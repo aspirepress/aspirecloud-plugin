@@ -77,7 +77,7 @@ class Plugins {
 			'label'               => __( 'Plugin', 'aspirecloud' ),
 			'description'         => __( 'WordPress Plugin Repository', 'aspirecloud' ),
 			'labels'              => $labels,
-			'supports'            => [ 'title', 'editor', 'thumbnail', 'custom-fields' ],
+			'supports'            => [ 'title' ],
 			'taxonomies'          => [],
 			'hierarchical'        => false,
 			'public'              => true,
