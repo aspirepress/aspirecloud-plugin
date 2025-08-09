@@ -4,14 +4,31 @@
  * Uses modern JavaScript class structure without legacy compatibility layer
  */
 
-(function($) {
+(function(jQuery) {
 	'use strict';
 
 	// Main AspireCloud Admin class that coordinates the separate managers
 	class AspireCloudAdmin {
 		constructor() {
+			// Element selectors
+			this.selectors = {
+				progressContainer: '.aspirecloud-progress-container',
+				importThemesBtn: '#import-themes-btn',
+				importPluginsBtn: '#import-plugins-btn',
+				restoreDbBtn: '#restore-database-btn',
+				importButtons: '#import-themes-btn, #import-plugins-btn, #restore-database-btn',
+				importOption: '.aspirecloud-import-option',
+				metadataCheckbox: '#import-metadata-checkbox',
+				filesCheckbox: '#import-files-checkbox',
+				bulkImportCheckbox: '#bulk-import-checkbox',
+				bulkImportOptions: '#bulk-import-options',
+				selectiveImportOptions: '#selective-import-options',
+				importSlugsTextarea: '#import-slugs-textarea',
+				importPage: '.aspirecloud-import-page'
+			};
+
 			// Initialize the progress bar
-			this.progressBar = new ProgressBar('.aspirecloud-progress-container');
+			this.progressBar = new ProgressBar(this.selectors.progressContainer);
 
 			// Detect asset type and initialize import assets accordingly
 			this.assetType = this.detectAssetType();
@@ -26,117 +43,117 @@
 			}
 			this.clearAssets.setProgressBar(this.progressBar);
 
-			// Bind import button events
+			// Bind import button events and initialize button state
 			this.bindImportEvents();
-
-			// Initialize button state based on default checkbox values
 			this.updateImportButtonState();
+			this.initializeBulkImportToggle();
 		}
 
 		// Detect whether we're on themes or plugins page
 		detectAssetType() {
-			if (jQuery('#import-themes-btn').length) {
-				return 'themes';
-			} else if (jQuery('#import-plugins-btn').length) {
-				return 'plugins';
-			}
-			return null;
+			return jQuery(this.selectors.importThemesBtn).length ? 'themes' :
+				   jQuery(this.selectors.importPluginsBtn).length ? 'plugins' : null;
 		}
 
 		// Bind import button click events
 		bindImportEvents() {
-			const self = this;
-
-			// Import themes button
-			jQuery(document).on('click', '#import-themes-btn', function(e) {
+			jQuery(document).on('click', this.selectors.importButtons, (e) => {
 				e.preventDefault();
-				if (self.importAssets && !self.importAssets.isRunning()) {
-					self.importAssets.start();
-				}
-			});
 
-			// Import plugins button
-			jQuery(document).on('click', '#import-plugins-btn', function(e) {
-				e.preventDefault();
-				if (self.importAssets && !self.importAssets.isRunning()) {
-					self.importAssets.start();
-				}
-			});
+				const target = jQuery(e.target);
+				const buttonId = target.attr('id');
 
-			// Database restore button
-			jQuery(document).on('click', '#restore-database-btn', function(e) {
-				e.preventDefault();
-				if (self.importAssets) {
-					self.importAssets.handleDatabaseRecovery();
+				if (!this.importAssets) return;
+
+				if (buttonId === 'restore-database-btn') {
+					this.importAssets.handleDatabaseRecovery();
+				} else if (!this.importAssets.isRunning()) {
+					this.importAssets.start();
 				}
 			});
 
 			// Handle import option checkboxes
-			jQuery(document).on('change', '.aspirecloud-import-option', function() {
-				self.updateImportButtonState();
+			jQuery(document).on('change', this.selectors.importOption, () => {
+				this.updateImportButtonState();
 			});
 		}
 
 		// Update import button state based on checkbox selections
 		updateImportButtonState() {
-			const importMetadata = jQuery('#import-metadata-checkbox').is(':checked');
-			const importFiles = jQuery('#import-files-checkbox').is(':checked');
+			const bulkImportEnabled = jQuery(this.selectors.bulkImportCheckbox).is(':checked');
 			const importButton = jQuery(`#import-${this.assetType}-btn`);
 
-			if (!importMetadata && !importFiles) {
-				// No options selected, disable button
-				importButton.prop('disabled', true).addClass('disabled');
+			if (bulkImportEnabled) {
+				// Bulk import mode - check metadata/files checkboxes
+				const checkboxes = jQuery(`${this.selectors.metadataCheckbox}, ${this.selectors.filesCheckbox}`);
+				const isAnyChecked = checkboxes.is(':checked');
+				importButton.prop('disabled', !isAnyChecked).toggleClass('disabled', !isAnyChecked);
 			} else {
-				// At least one option selected, enable button
-				importButton.prop('disabled', false).removeClass('disabled');
+				// Selective import mode - check if slugs are provided
+				const slugsText = jQuery(this.selectors.importSlugsTextarea).val().trim();
+				const hasSlugs = slugsText.length > 0;
+				importButton.prop('disabled', !hasSlugs).toggleClass('disabled', !hasSlugs);
 			}
 		}
 
-		// Get the import assets
-		getImportAssets() {
-			return this.importAssets;
+		// Initialize bulk import toggle functionality
+		initializeBulkImportToggle() {
+			// Handle bulk import checkbox change
+			jQuery(document).on('change', this.selectors.bulkImportCheckbox, () => {
+				this.toggleImportMode();
+			});
+
+			// Handle textarea input for selective import
+			jQuery(document).on('input', this.selectors.importSlugsTextarea, () => {
+				this.updateImportButtonState();
+			});
+
+			// Initialize the toggle state
+			this.toggleImportMode();
 		}
 
-		// Get the clear assets
-		getClearAssets() {
-			return this.clearAssets;
-		}
+		// Toggle between bulk and selective import modes
+		toggleImportMode() {
+			const bulkImportEnabled = jQuery(this.selectors.bulkImportCheckbox).is(':checked');
 
-		// Get the progress bar
-		getProgressBar() {
-			return this.progressBar;
+			if (bulkImportEnabled) {
+				// Show bulk import options, hide selective import options
+				jQuery(this.selectors.bulkImportOptions).show();
+				jQuery(this.selectors.selectiveImportOptions).hide();
+			} else {
+				// Hide bulk import options, show selective import options
+				jQuery(this.selectors.bulkImportOptions).hide();
+				jQuery(this.selectors.selectiveImportOptions).show();
+			}
+
+			// Update button state
+			this.updateImportButtonState();
 		}
 
 		// Check if any operation is running
 		isRunning() {
-			return (this.importAssets && this.importAssets.isRunning()) || this.clearAssets.isRunning();
+			return (this.importAssets?.isRunning()) || this.clearAssets.isRunning();
 		}
 
 		// Initialize database state checking
 		initializeDatabaseState() {
-			if (this.importAssets) {
-				this.importAssets.checkDatabaseOptimizationState();
-			}
+			this.importAssets?.checkDatabaseOptimizationState();
 		}
 	}
 
-	// Global instance
-	let aspireCloudAdmin = null;
-
 	// Initialize when document is ready
-	$(document).ready(function() {
+	jQuery(document).ready(() => {
 		// Only initialize on import pages
-		if ($('.aspirecloud-import-page').length) {
-			aspireCloudAdmin = new AspireCloudAdmin();
-
-			// Initialize database state checking
+		if (jQuery('.aspirecloud-import-page').length) {
+			const aspireCloudAdmin = new AspireCloudAdmin();
 			aspireCloudAdmin.initializeDatabaseState();
+
+			// Expose instance to global scope for debugging
+			window.aspireCloudAdmin = aspireCloudAdmin;
 		}
 	});
 
-	// Expose main class and instance to global scope for debugging
+	// Expose main class to global scope
 	window.AspireCloudAdmin = AspireCloudAdmin;
-	// Expose the global instance
-	window.aspireCloudAdmin = aspireCloudAdmin;
 
 })(jQuery);

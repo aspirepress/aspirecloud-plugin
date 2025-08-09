@@ -23,7 +23,11 @@ class ImportAssets {
 			importButton: `#import-${assetType}-btn`,
 			restoreButton: '#restore-database-btn',
 			progressContainer: '.aspirecloud-progress-container',
-			logContainer: '.aspirecloud-log-container'
+			logContainer: '.aspirecloud-log-container',
+			metadataCheckbox: '#import-metadata-checkbox',
+			filesCheckbox: '#import-files-checkbox',
+			bulkImportCheckbox: '#bulk-import-checkbox',
+			importSlugsTextarea: '#import-slugs-textarea'
 		};
 
 		// Initialize logging system
@@ -53,9 +57,23 @@ class ImportAssets {
 			return;
 		}
 
+		// Check if bulk import is enabled
+		const bulkImportEnabled = jQuery(this.selectors.bulkImportCheckbox).is(':checked');
+
+		if (bulkImportEnabled) {
+			// Bulk import mode
+			this.startBulkImport();
+		} else {
+			// Selective import mode
+			this.startSelectiveImport();
+		}
+	}
+
+	// Start bulk import (original functionality)
+	startBulkImport() {
 		// Check which phases are selected
-		const importMetadata = jQuery('#import-metadata-checkbox').is(':checked');
-		const importFiles = jQuery('#import-files-checkbox').is(':checked');
+		const importMetadata = jQuery(this.selectors.metadataCheckbox).is(':checked');
+		const importFiles = jQuery(this.selectors.filesCheckbox).is(':checked');
 
 		// Validate that at least one phase is selected
 		if (!importMetadata && !importFiles) {
@@ -64,12 +82,13 @@ class ImportAssets {
 			return;
 		}
 
-		this.logger.log('INFO', `Starting ${this.config.assetType} import process`,
+		this.logger.log('INFO', `Starting ${this.config.assetType} bulk import process`,
 			`Selected phases: ${importMetadata ? 'Metadata' : ''}${importMetadata && importFiles ? ' + ' : ''}${importFiles ? 'Files' : ''}`);
 
 		this.config.isRunning = true;
 		this.config.importMetadata = importMetadata;
 		this.config.importFiles = importFiles;
+		this.config.bulkImport = true;
 		this.errors = [];
 
 		// Reset all sub-managers
@@ -101,6 +120,172 @@ class ImportAssets {
 			// Skip to Phase 2: File Downloads (metadata phase not selected)
 			this.logger.log('INFO', 'Skipping metadata phase, starting file downloads directly');
 			this.onMetadataImportComplete();
+		}
+	}
+
+	// Start selective import by slugs (CSV only)
+	startSelectiveImport() {
+		const slugsInput = jQuery(this.selectors.importSlugsTextarea).val().trim();
+
+		if (!slugsInput) {
+			this.logger.log('ERROR', 'No slugs provided', 'Please enter asset slugs to import');
+			alert(`Please enter ${this.config.assetType} slugs to import`);
+			return;
+		}
+
+		// All selective imports now use CSV bulk import workflow
+		this.startCsvBulkImport(slugsInput);
+	}
+
+	// Start CSV bulk import for all selective imports
+	startCsvBulkImport(csvInput) {
+		// Extract all slugs from CSV input
+		const allSlugs = this.extractSlugsFromCsv(csvInput);
+
+		if (allSlugs.length === 0) {
+			this.logger.log('ERROR', 'No valid slugs found in CSV', 'Please check your CSV format and ensure it contains valid asset slugs');
+			alert('No valid asset slugs found in the CSV input. Please check your format.');
+			return;
+		}
+
+		this.logger.log('INFO', `Starting ${this.config.assetType} CSV bulk import process`,
+			`Found ${allSlugs.length} assets to import`);
+
+		this.config.isRunning = true;
+		this.config.bulkImport = false;
+		this.config.csvBulkImport = true;
+		this.config.csvSlugs = [...allSlugs]; // Store copy of all slugs
+		this.config.remainingSlugs = [...allSlugs]; // Working copy that gets modified
+		this.errors = [];
+
+		// Disable import button
+		this.disableImportButton();
+		this.logger.log('DEBUG', 'Import button disabled');
+
+		// Reset UI
+		if (this.progressBar) {
+			this.progressBar.reset();
+			this.progressBar.show();
+			this.progressBar.updateStatus(`Starting CSV bulk import of ${allSlugs.length} assets...`);
+			this.logger.log('DEBUG', 'Progress bar reset and shown');
+		}
+
+		// Show log container along with progress
+		jQuery(this.selectors.logContainer).show();
+
+		// Start CSV bulk import processing
+		this.processCsvBulkImport();
+	}
+
+	// Extract slugs from CSV input
+	extractSlugsFromCsv(csvInput) {
+		const slugs = [];
+		const lines = csvInput.split('\n');
+
+		for (const line of lines) {
+			if (line.trim()) {
+				// Split by comma and extract slugs
+				const lineItems = line.split(',').map(item => item.trim());
+				for (const item of lineItems) {
+					// Basic slug validation
+					if (item && /^[a-zA-Z0-9\-_]+$/.test(item) && !slugs.includes(item)) {
+						slugs.push(item);
+					}
+				}
+			}
+		}
+
+		this.logger.log('INFO', `Extracted ${slugs.length} unique slugs from CSV input`);
+		return slugs;
+	}
+
+	// Process CSV bulk import in batches
+	processCsvBulkImport() {
+		const batchSize = 25; // Process 25 slugs at a time for CSV bulk import
+		const totalSlugs = this.config.csvSlugs.length;
+		const processedSlugs = totalSlugs - this.config.remainingSlugs.length;
+
+		if (this.config.remainingSlugs.length === 0) {
+			// All slugs processed
+			this.completeCsvBulkImport();
+			return;
+		}
+
+		// Get next batch
+		const batchSlugs = this.config.remainingSlugs.splice(0, batchSize);
+
+		this.logger.log('INFO', `Processing CSV batch: ${batchSlugs.length} assets (${processedSlugs + batchSlugs.length}/${totalSlugs})`);
+
+		// Update progress
+		const progress = Math.round(((processedSlugs + batchSlugs.length) / totalSlugs) * 100);
+		if (this.progressBar) {
+			this.progressBar.updateProgress(progress);
+			this.progressBar.updateDetails(`Processing ${processedSlugs + batchSlugs.length} of ${totalSlugs} assets`);
+		}
+
+		// Import this batch using CSV batch handler
+		jQuery.ajax({
+			url: aspirecloud_ajax.ajax_url,
+			type: 'POST',
+			data: {
+				action: 'aspirecloud_import_csv_batch',
+				slugs: batchSlugs.join(','),
+				nonce: aspirecloud_ajax.nonce
+			}
+		})
+			.done((response) => {
+				if (response.success) {
+					// Log batch results
+					if (response.data.imported.length > 0) {
+						this.logger.log('SUCCESS', `Batch imported: ${response.data.imported.length} assets`);
+					}
+					if (response.data.skipped.length > 0) {
+						this.logger.log('WARNING', `Batch skipped: ${response.data.skipped.length} assets`);
+					}
+					if (response.data.errors.length > 0) {
+						this.logger.log('ERROR', `Batch errors: ${response.data.errors.length} assets`);
+						response.data.errors.forEach(item => {
+							this.addError(`${item.slug}: ${item.message}`);
+						});
+					}
+
+					// Continue with next batch after a short delay
+					setTimeout(() => this.processCsvBulkImport(), 500);
+				} else {
+					this.logger.log('ERROR', `CSV batch import failed: ${response.data || 'Unknown error'}`);
+					this.handleError(response.data || 'CSV batch import failed');
+				}
+			})
+			.fail((jqXHR, textStatus, errorThrown) => {
+				this.logger.log('ERROR', `CSV batch AJAX request failed: ${textStatus} - ${errorThrown}`);
+				this.handleError(`Network error during CSV import: ${textStatus}`);
+			});
+	}
+
+	// Complete CSV bulk import process
+	completeCsvBulkImport() {
+		this.config.isRunning = false;
+
+		const totalSlugs = this.config.csvSlugs.length;
+		this.logger.log('SUCCESS', `CSV bulk import completed`, `Processed ${totalSlugs} assets`);
+
+		if (this.progressBar) {
+			this.progressBar.updateStatus('CSV bulk import complete!');
+			this.progressBar.updateProgress(100);
+			this.progressBar.setComplete();
+			this.progressBar.updateDetails(`CSV import complete: ${totalSlugs} assets processed`);
+		}
+
+		// Re-enable button
+		this.enableImportButton();
+		this.logger.log('DEBUG', 'Import button re-enabled');
+
+		// Show errors if any
+		if (this.errors.length > 0) {
+			this.logger.log('WARNING', `CSV import completed with ${this.errors.length} errors`);
+			this.showErrors();
+		} else {
+			this.logger.log('SUCCESS', 'CSV import completed with no errors');
 		}
 	}
 
@@ -201,7 +386,7 @@ class ImportAssets {
 		errorHtml += '<h4>Import Warnings (' + this.errors.length + ')</h4>';
 		errorHtml += '<div class="aspirecloud-error-list">';
 
-		this.errors.forEach(function (error) {
+		this.errors.forEach((error) => {
 			errorHtml += '<div class="aspirecloud-error-item">' + error + '</div>';
 		});
 

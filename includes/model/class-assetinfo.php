@@ -28,6 +28,10 @@ class AssetInfo {
 	 */
 	public function __construct( $data = [] ) {
 		if ( is_array( $data ) ) {
+			//Handle Download Links attribute as a special case as it appears as both downloadLink and download_link in the API responses
+			if ( isset( $data['downloadLink'] ) && ! isset( $data['download_link'] ) ) {
+				$data['download_link'] = $data['downloadLink'];
+			}
 			$this->data = $data;
 		}
 	}

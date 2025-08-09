@@ -106,8 +106,8 @@ class PluginImport extends AssetsImporter {
 	public function render_admin_page() {
 		$this->render_common_admin_page(
 			__( 'Import Plugins', 'aspirecloud' ),
-			__( 'Import all plugins from the WordPress.org repository into your local database.', 'aspirecloud' ),
-			__( 'Import All Plugins', 'aspirecloud' ),
+			__( 'Import plugins from the connected repository into your local database.', 'aspirecloud' ),
+			__( 'Import Plugins', 'aspirecloud' ),
 			'import-plugins-btn',
 			__( 'Clear Plugin Data', 'aspirecloud' ),
 			'clear-plugins-data-btn'

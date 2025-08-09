@@ -92,8 +92,6 @@ class FileDownloader {
 	}
 
 	start() {
-		const self = this;
-
 		// Check if metadata was imported or if we need to get count differently
 		if (this.parent.config.importMetadata || this.parent.metadataImporter.getImportedCount() > 0) {
 			// Normal case: metadata was imported, use that count

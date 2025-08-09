@@ -9,6 +9,16 @@ class Logger {
 	constructor(containerSelector = '.aspirecloud-log-container') {
 		this.containerSelector = containerSelector;
 
+		// Element selectors
+		this.selectors = {
+			container: containerSelector,
+			toggle: '.aspirecloud-log-toggle',
+			content: '.aspirecloud-log-content',
+			toggleText: '.aspirecloud-log-toggle-text',
+			clear: '.aspirecloud-log-clear',
+			entries: '.aspirecloud-log-entries'
+		};
+
 		// Log severity levels with colors
 		this.logLevels = {
 			INFO: { class: 'aspirecloud-log-info', color: '#2271b1', label: 'INFO' },
@@ -23,7 +33,7 @@ class Logger {
 
 	initialize() {
 		// Show log container (already rendered in PHP)
-		jQuery(this.containerSelector).show();
+		jQuery(this.selectors.container).show();
 
 		// Bind toggle and clear events
 		this.bindEvents();
@@ -33,26 +43,24 @@ class Logger {
 	}
 
 	bindEvents() {
-		const self = this;
-
 		// Toggle log visibility
-		jQuery(document).on('click', '.aspirecloud-log-toggle', function () {
-			const $content = jQuery('.aspirecloud-log-content');
-			const $toggleText = jQuery('.aspirecloud-log-toggle-text');
+		jQuery(document).on('click', this.selectors.toggle, () => {
+			const content = jQuery(this.selectors.content);
+			const toggleText = jQuery(this.selectors.toggleText);
 
-			if ($content.is(':visible')) {
-				$content.hide();
-				$toggleText.text('Show');
+			if (content.is(':visible')) {
+				content.hide();
+				toggleText.text('Show');
 			} else {
-				$content.show();
-				$toggleText.text('Hide');
+				content.show();
+				toggleText.text('Hide');
 			}
 		});
 
 		// Clear log entries
-		jQuery(document).on('click', '.aspirecloud-log-clear', function () {
-			jQuery('.aspirecloud-log-entries').empty();
-			self.log('INFO', 'Log cleared');
+		jQuery(document).on('click', this.selectors.clear, () => {
+			jQuery(this.selectors.entries).empty();
+			this.log('INFO', 'Log cleared');
 		});
 	}
 
@@ -73,11 +81,11 @@ class Logger {
 
 		logEntry += `</div>`;
 
-		const $logEntries = jQuery('.aspirecloud-log-entries');
-		$logEntries.append(logEntry);
+		const logEntries = jQuery(this.selectors.entries);
+		logEntries.append(logEntry);
 
 		// Auto-scroll to bottom
-		const logContent = $logEntries.parent()[0];
+		const logContent = logEntries.parent()[0];
 		logContent.scrollTop = logContent.scrollHeight;
 
 		// Also log to console for debugging
@@ -85,15 +93,15 @@ class Logger {
 	}
 
 	show() {
-		jQuery(this.containerSelector).show();
+		jQuery(this.selectors.container).show();
 	}
 
 	hide() {
-		jQuery(this.containerSelector).hide();
+		jQuery(this.selectors.container).hide();
 	}
 
 	clear() {
-		jQuery('.aspirecloud-log-entries').empty();
+		jQuery(this.selectors.entries).empty();
 		this.log('INFO', 'Log cleared');
 	}
 }

@@ -5,6 +5,14 @@
 
 class ClearAssets {
 	constructor() {
+		// Element selectors
+		this.selectors = {
+			clearPluginsBtn: '#clear-plugins-data-btn',
+			clearThemesBtn: '#clear-themes-data-btn',
+			clearButtons: '#clear-plugins-data-btn, #clear-themes-data-btn',
+			progressContainer: '.aspirecloud-progress-container'
+		};
+
 		this.config = {
 			currentBatch: 1,
 			totalBatches: 0,
@@ -27,40 +35,24 @@ class ClearAssets {
 
 	// Detect if we're on plugins or themes clear page
 	detectClearType() {
-		if (jQuery('#clear-plugins-data-btn').length) {
-			this.config.assetType = 'plugins';
-		} else if (jQuery('#clear-themes-data-btn').length) {
-			this.config.assetType = 'themes';
-		}
+		this.config.assetType = jQuery(this.selectors.clearPluginsBtn).length ? 'plugins' :
+								  jQuery(this.selectors.clearThemesBtn).length ? 'themes' : '';
 	}
 
 	// Bind event handlers
 	bindEvents() {
-		const self = this;
-
-		// Plugin clear data button
-		jQuery(document).on('click', '#clear-plugins-data-btn', function(e) {
+		// Clear data buttons
+		jQuery(document).on('click', this.selectors.clearButtons, (e) => {
 			e.preventDefault();
-			if (!self.config.isRunning) {
-				self.config.assetType = 'plugins';
-				self.clearData();
-			}
-		});
-
-		// Theme clear data button
-		jQuery(document).on('click', '#clear-themes-data-btn', function(e) {
-			e.preventDefault();
-			if (!self.config.isRunning) {
-				self.config.assetType = 'themes';
-				self.clearData();
+			if (!this.config.isRunning) {
+				this.config.assetType = e.target.id.includes('plugins') ? 'plugins' : 'themes';
+				this.clearData();
 			}
 		});
 	}
 
 	// Clear all data for the current item type
 	clearData() {
-		const self = this;
-
 		// Confirm with user
 		if (!confirm(aspirecloud_ajax.strings.confirm_clear)) {
 			return;
@@ -78,24 +70,24 @@ class ClearAssets {
 
 		// Get total count first
 		this.getClearCount()
-			.done(function(response) {
+			.done((response) => {
 				if (response.success) {
-					self.config.totalItems = response.data.total;
-					self.config.totalBatches = response.data.total_batches;
+					this.config.totalItems = response.data.total;
+					this.config.totalBatches = response.data.total_batches;
 
-					if (self.config.totalItems === 0) {
-						self.completeClear();
+					if (this.config.totalItems === 0) {
+						this.completeClear();
 						return;
 					}
 
 					// Start clearing batches
-					self.clearNextBatch();
+					this.clearNextBatch();
 				} else {
-					self.handleError(response.data || 'Failed to get clear count');
+					this.handleError(response.data || 'Failed to get clear count');
 				}
 			})
-			.fail(function() {
-				self.handleError('Failed to get clear count');
+			.fail(() => {
+				this.handleError('Failed to get clear count');
 			});
 	}
 
@@ -116,8 +108,6 @@ class ClearAssets {
 
 	// Clear the next batch
 	clearNextBatch() {
-		const self = this;
-
 		// Update status
 		let statusText = aspirecloud_ajax.strings.clearing_data;
 		if (this.config.totalItems > 0) {
@@ -131,35 +121,35 @@ class ClearAssets {
 
 		// Clear current batch
 		this.clearBatch()
-			.done(function(response) {
+			.done((response) => {
 				if (response.success) {
-					self.config.clearedCount += response.data.deleted_count;
+					this.config.clearedCount += response.data.deleted_count;
 
 					// Add any errors to our collection
 					if (response.data.errors && response.data.errors.length > 0) {
-						self.config.errors = self.config.errors.concat(response.data.errors);
+						this.config.errors = this.config.errors.concat(response.data.errors);
 					}
 
 					// Update progress
-					self.updateClearProgress();
+					this.updateClearProgress();
 
 					// Check if there are more items to clear
 					if (response.data.has_more) {
 						// Continue with next batch after a short delay
-						setTimeout(function() {
-							self.clearNextBatch();
+						setTimeout(() => {
+							this.clearNextBatch();
 						}, 100);
 					} else {
 						// All done
-						self.completeClear();
+						this.completeClear();
 					}
 
 				} else {
-					self.handleError(response.data || aspirecloud_ajax.strings.error);
+					this.handleError(response.data || aspirecloud_ajax.strings.error);
 				}
 			})
-			.fail(function() {
-				self.handleError(aspirecloud_ajax.strings.error);
+			.fail(() => {
+				this.handleError(aspirecloud_ajax.strings.error);
 			});
 	}
 
@@ -256,13 +246,13 @@ class ClearAssets {
 		errorHtml += '<h4>Clear Warnings (' + this.config.errors.length + ')</h4>';
 		errorHtml += '<div class="aspirecloud-error-list" style="max-height: 200px; overflow-y: auto; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">';
 
-		this.config.errors.forEach(function(error) {
+		this.config.errors.forEach((error) => {
 			errorHtml += '<div style="margin-bottom: 5px; font-size: 12px; color: #666;">' + error + '</div>';
 		});
 
 		errorHtml += '</div></div>';
 
-		jQuery('.aspirecloud-progress-container').append(errorHtml);
+		jQuery(this.selectors.progressContainer).append(errorHtml);
 	}
 
 	// Disable clear button

@@ -106,8 +106,8 @@ class ThemeImport extends AssetsImporter {
 	public function render_admin_page() {
 		$this->render_common_admin_page(
 			__( 'Import Themes', 'aspirecloud' ),
-			__( 'Import all themes from the connected repository into your local database.', 'aspirecloud' ),
-			__( 'Import All Themes', 'aspirecloud' ),
+			__( 'Import themes from the connected repository into your local database.', 'aspirecloud' ),
+			__( 'Import Themes', 'aspirecloud' ),
 			'import-themes-btn',
 			__( 'Clear Theme Data', 'aspirecloud' ),
 			'clear-themes-data-btn'

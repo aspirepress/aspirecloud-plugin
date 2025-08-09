@@ -1,5 +1,7 @@
 /* AspireCloud Admin Styles */
 
+@use "sass:color";
+
 // Variables
 $primary-color: #007cba;
 $primary-light: #00a0d2;
@@ -116,6 +118,286 @@ $shadow-dark: rgba(0, 0, 0, 0.3);
 			border-color: #dc3232 !important;
 			opacity: 0.6;
 		}
+	}
+}
+
+// Import Options Styles
+.aspirecloud-import-options {
+	margin: 0 auto 40px;
+	text-align: left;
+	background: $white;
+	border: 1px solid $border-color;
+	border-radius: 12px;
+	padding: 24px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+	transition: all 0.3s ease;
+
+	&:hover {
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+	}
+
+	h4 {
+		margin: 0 0 20px 0;
+		font-size: 18px;
+		font-weight: 600;
+		color: $text-color;
+		padding-bottom: 8px;
+		border-bottom: 2px solid $primary-color;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+
+		&::before {
+			content: "⚙️";
+			font-size: 16px;
+		}
+	}
+}
+
+.aspirecloud-checkbox-container {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.aspirecloud-checkbox-wrapper {
+	position: relative;
+	display: block;
+	padding: 16px 20px;
+	background: $background-light;
+	border: 2px solid transparent;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	margin: 0;
+
+	&:hover {
+		background: color.adjust($background-light, $lightness: -3%);
+		border-color: rgba($primary-color, 0.3);
+	}
+
+	&:has(input:checked) {
+		background: rgba($primary-color, 0.05);
+		border-color: $primary-color;
+		box-shadow: 0 2px 8px rgba($primary-color, 0.15);
+	}
+
+	&:has(input:disabled) {
+		opacity: 0.6;
+		cursor: not-allowed;
+
+		&:hover {
+			transform: none;
+			border-color: transparent;
+		}
+	}
+
+	input[type="checkbox"] {
+		position: absolute;
+		left: 16px;
+		top: 20px;
+		width: 18px;
+		height: 18px;
+		margin: 0;
+		cursor: pointer;
+		accent-color: $primary-color;
+		transform: scale(1.2);
+
+		&:disabled {
+			cursor: not-allowed;
+		}
+	}
+}
+
+.aspirecloud-checkbox-label {
+	display: block;
+	font-size: 16px;
+	font-weight: 600;
+	color: $text-color;
+	margin-left: 40px;
+	margin-bottom: 4px;
+	line-height: 1.3;
+	cursor: pointer;
+}
+
+.aspirecloud-checkbox-description {
+	display: block;
+	font-size: 14px;
+	color: $text-light;
+	margin-left: 40px;
+	line-height: 1.4;
+	cursor: pointer;
+}
+
+// Bulk Options Styles
+.aspirecloud-bulk-options {
+	margin-left: 0;
+	padding-left: 0;
+	margin-top: 16px;
+
+	.aspirecloud-checkbox-wrapper {
+		background: $white;
+		border: 1px solid $border-color;
+		margin-bottom: 10px;
+
+		&:has(input:checked) {
+			background: rgba($success-color, 0.05);
+			border-color: $success-color;
+		}
+	}
+}
+
+// Selective Options Styles
+.aspirecloud-selective-options {
+	margin-top: 16px;
+	padding: 20px;
+	background: $white;
+	border: 1px solid $border-color;
+	border-radius: 8px;
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.aspirecloud-textarea-wrapper {
+	display: block;
+	margin: 0;
+}
+
+.aspirecloud-textarea-label {
+	display: block;
+	font-size: 15px;
+	font-weight: 600;
+	color: $text-color;
+	margin-bottom: 8px;
+	line-height: 1.3;
+}
+
+.aspirecloud-slugs-input {
+	width: 100%;
+	min-height: 120px;
+	padding: 12px 16px;
+	border: 2px solid $border-color;
+	border-radius: 6px;
+	font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+	font-size: 14px;
+	line-height: 1.5;
+	background: $white;
+	color: $text-color;
+	resize: vertical;
+	transition: all 0.3s ease;
+
+	&:focus {
+		outline: none;
+		border-color: $primary-color;
+		box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+	}
+
+	&::placeholder {
+		color: $text-light;
+		font-style: italic;
+	}
+
+	&:invalid {
+		border-color: $error-color;
+		box-shadow: 0 0 0 3px rgba($error-color, 0.1);
+	}
+}
+
+.aspirecloud-textarea-description {
+	display: block;
+	font-size: 13px;
+	color: $text-light;
+	margin-top: 8px;
+	line-height: 1.4;
+	font-style: italic;
+	padding: 8px 12px;
+	background: rgba($primary-color, 0.03);
+	border-left: 3px solid rgba($primary-color, 0.3);
+	border-radius: 0 4px 4px 0;
+}
+
+// Animation for showing/hiding options
+.aspirecloud-bulk-options,
+.aspirecloud-selective-options {
+	overflow: hidden;
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+	&[style*="display: none"] {
+		max-height: 0;
+		opacity: 0;
+		padding: 0 20px;
+		margin: 0;
+		transform: translateY(-10px);
+	}
+}
+
+// Responsive Design for Import Options
+@media (max-width: 768px) {
+	.aspirecloud-import-options {
+		margin: 0 10px 30px;
+		padding: 20px 16px;
+
+		h4 {
+			font-size: 16px;
+		}
+	}
+
+	.aspirecloud-checkbox-wrapper {
+		padding: 14px 16px;
+
+		input[type="checkbox"] {
+			left: 12px;
+			top: 16px;
+		}
+	}
+
+	.aspirecloud-checkbox-label {
+		margin-left: 36px;
+		font-size: 15px;
+	}
+
+	.aspirecloud-checkbox-description {
+		margin-left: 36px;
+		font-size: 13px;
+	}
+
+	.aspirecloud-slugs-input {
+		font-size: 13px;
+		padding: 10px 12px;
+	}
+}
+
+@media (max-width: 480px) {
+	.aspirecloud-import-options {
+		margin: 0 5px 20px;
+		padding: 16px 12px;
+	}
+
+	.aspirecloud-checkbox-wrapper {
+		padding: 12px;
+	}
+
+	.aspirecloud-checkbox-label {
+		margin-left: 32px;
+		font-size: 14px;
+	}
+
+	.aspirecloud-checkbox-description {
+		margin-left: 32px;
+		font-size: 12px;
+	}
+
+	.aspirecloud-textarea-label {
+		font-size: 14px;
+	}
+
+	.aspirecloud-slugs-input {
+		min-height: 100px;
+		font-size: 12px;
+	}
+
+	.aspirecloud-textarea-description {
+		font-size: 12px;
+		padding: 6px 8px;
 	}
 }
 
@@ -322,8 +604,8 @@ $shadow-dark: rgba(0, 0, 0, 0.3);
 		margin-left: 8px;
 
 		&:hover {
-			background: darken($background-light, 5%);
-			border-color: darken($border-color, 10%);
+			background: color.adjust($background-light, $lightness: -5%);
+			border-color: color.adjust($border-color, $lightness: -10%);
 		}
 
 		&:focus {
@@ -338,7 +620,7 @@ $shadow-dark: rgba(0, 0, 0, 0.3);
 		border-color: #dc3232;
 
 		&:hover {
-			background: darken(#dc3232, 5%);
+			background: color.adjust(#dc3232, $lightness: -5%);
 		}
 	}
 }
