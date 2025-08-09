@@ -12,14 +12,61 @@
 		constructor() {
 			// Initialize the progress bar
 			this.progressBar = new ProgressBar('.aspirecloud-progress-container');
-			
+
+			// Detect asset type and initialize import assets accordingly
+			this.assetType = this.detectAssetType();
+
 			// Initialize the managers
-			this.importAssets = new ImportAssets();
+			this.importAssets = this.assetType ? new ImportAssets(this.assetType, this.progressBar) : null;
 			this.clearAssets = new ClearAssets();
-			
-			// Set the progress bar for both managers
-			this.importAssets.setProgressBar(this.progressBar);
+
+			// Set the progress bar for managers
+			if (this.importAssets) {
+				this.importAssets.setProgressBar(this.progressBar);
+			}
 			this.clearAssets.setProgressBar(this.progressBar);
+
+			// Bind import button events
+			this.bindImportEvents();
+		}
+
+		// Detect whether we're on themes or plugins page
+		detectAssetType() {
+			if (jQuery('#import-themes-btn').length) {
+				return 'themes';
+			} else if (jQuery('#import-plugins-btn').length) {
+				return 'plugins';
+			}
+			return null;
+		}
+
+		// Bind import button click events
+		bindImportEvents() {
+			const self = this;
+
+			// Import themes button
+			jQuery(document).on('click', '#import-themes-btn', function(e) {
+				e.preventDefault();
+				if (self.importAssets && !self.importAssets.isRunning()) {
+					self.importAssets.start();
+				}
+			});
+
+			// Import plugins button
+			jQuery(document).on('click', '#import-plugins-btn', function(e) {
+				e.preventDefault();
+				if (self.importAssets && !self.importAssets.isRunning()) {
+					self.importAssets.start();
+				}
+			});
+
+			// Database restore button
+			jQuery(document).on('click', '#restore-database-btn', function(e) {
+				e.preventDefault();
+				if (self.importAssets) {
+					self.importAssets.handleDatabaseRecovery();
+				}
+			});
 		}
 
 		// Get the import assets
@@ -39,7 +86,14 @@
 
 		// Check if any operation is running
 		isRunning() {
-			return this.importAssets.isRunning() || this.clearAssets.isRunning();
+			return (this.importAssets && this.importAssets.isRunning()) || this.clearAssets.isRunning();
+		}
+
+		// Initialize database state checking
+		initializeDatabaseState() {
+			if (this.importAssets) {
+				this.importAssets.checkDatabaseOptimizationState();
+			}
 		}
 	}
 
@@ -51,12 +105,14 @@
 		// Only initialize on import pages
 		if ($('.aspirecloud-import-page').length) {
 			aspireCloudAdmin = new AspireCloudAdmin();
+
+			// Initialize database state checking
+			aspireCloudAdmin.initializeDatabaseState();
 		}
 	});
 
 	// Expose main class and instance to global scope for debugging
 	window.AspireCloudAdmin = AspireCloudAdmin;
-	
 	// Expose the global instance
 	window.aspireCloudAdmin = aspireCloudAdmin;
 
