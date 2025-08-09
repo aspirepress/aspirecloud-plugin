@@ -113,7 +113,6 @@
 
 	// Expose main class and instance to global scope for debugging
 	window.AspireCloudAdmin = AspireCloudAdmin;
-
 	// Expose the global instance
 	window.aspireCloudAdmin = aspireCloudAdmin;
 

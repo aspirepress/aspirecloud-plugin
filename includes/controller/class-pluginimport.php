@@ -122,7 +122,7 @@ class PluginImport extends AssetsImporter {
 		if ( ! function_exists( 'plugins_api' ) ) {
 			include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		}
-
+    
 		$count_response = plugins_api(
 			'query_plugins',
 			[
